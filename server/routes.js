@@ -251,6 +251,19 @@ admin.post('/seasons', wrap(async req => {
   });
 }));
 
+// Xato ochilgan mavsumni o'chirish — faqat janglarda hali natija bo'lmasa
+admin.delete('/seasons/:id', wrap(async req => {
+  const id = int(req.params.id, 'ID');
+  return db.tx(async t => {
+    const { rows: [s] } = await t.query(`SELECT id FROM seasons WHERE id = $1`, [id]);
+    if (!s) throw httpError(404, 'Mavsum topilmadi');
+    const { rows: [{ n }] } = await t.query(`SELECT count(*)::int AS n FROM matches WHERE season_id = $1 AND winner IS NOT NULL`, [id]);
+    if (n > 0) throw httpError(409, 'Janglarda natijalar bor — mavsumni o‘chirib bo‘lmaydi');
+    await t.query(`DELETE FROM seasons WHERE id = $1`, [id]);
+    return { ok: true };
+  });
+}));
+
 admin.post('/seasons/:id/seed', wrap(async req => {
   const id = int(req.params.id, 'ID');
   return db.tx(t => league.seedIfReady(t.query, id, { force: true }));

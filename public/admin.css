@@ -1,0 +1,83 @@
+/* Admin panel — faqat ADMIN_IDS dagilarga yuklanadi */
+
+.adm{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch}
+.adm-in{max-width:560px;margin:0 auto;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+.adm-top{position:sticky;top:0;z-index:5;background:rgba(14,15,17,.95);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:12px 16px 10px}
+.adm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.adm-head h2{font-family:var(--display);font-weight:800;font-size:18px;margin:0}
+.adm-close{width:34px;height:34px;border-radius:50%;background:var(--surface-2);font-size:18px;line-height:1}
+.adm-tabs{display:flex;gap:4px;padding:4px;background:var(--surface);border-radius:12px}
+.adm-tabs button{flex:1;padding:8px 0;border-radius:9px;font-weight:600;font-size:12.5px;color:var(--muted)}
+.adm-tabs button.on{background:var(--surface-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+.adm-body{padding:8px 16px}
+
+.a-sec{margin:14px 0}
+.a-sec > h3{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin:0 4px 8px;display:flex;justify-content:space-between;align-items:center}
+.a-card{background:var(--surface);border-radius:var(--r);padding:12px 14px}
+.a-card + .a-card{margin-top:8px}
+.a-row{display:flex;align-items:center;gap:10px}
+.a-row + .a-row{margin-top:10px}
+.a-list{background:var(--surface);border-radius:var(--r);overflow:hidden}
+.a-item{display:flex;align-items:center;gap:10px;padding:11px 14px;width:100%;text-align:left}
+.a-item + .a-item{border-top:1px solid var(--line)}
+.a-item .grow{flex:1;min-width:0}
+.a-item b{display:block;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.a-item small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.a-item .chev{color:var(--dim)}
+.a-empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+.a-hint{font-size:12px;color:var(--muted);margin:6px 2px 0;line-height:1.4}
+
+.fld{display:flex;flex-direction:column;gap:5px;flex:1;min-width:0}
+.fld > span{font-size:11.5px;color:var(--muted);font-weight:500}
+.fld input,.fld select,.a-in{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px 11px;font:inherit;font-size:14px;outline:none;-webkit-appearance:none;appearance:none}
+.fld select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+.fld input:focus,.fld select:focus,.a-in:focus{border-color:var(--accent)}
+.fld.narrow{flex:0 0 76px}
+.fld input[type=date]{min-height:42px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 14px;border-radius:10px;font-weight:600;font-size:13.5px;background:var(--surface-2);color:var(--text);border:1px solid var(--line);white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ok{background:rgba(62,207,122,.16);border-color:rgba(62,207,122,.4);color:var(--green)}
+.btn.danger{color:var(--accent-ink);border-color:rgba(251,27,2,.35);background:transparent}
+.btn.sm{padding:6px 10px;font-size:12px;border-radius:8px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5}
+.btns{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btns .btn{flex:1}
+
+.badge{font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.badge.pub{background:rgba(62,207,122,.14);color:var(--green)}
+.badge.draft{background:var(--surface-2);color:var(--muted)}
+.badge.err{background:var(--accent-soft);color:var(--accent-ink)}
+.badge.tag{background:var(--surface-2);color:var(--text)}
+
+/* Natija qatori */
+.place-row{background:var(--surface);border-radius:var(--r);padding:10px 12px;display:grid;grid-template-columns:34px 1fr;gap:8px 10px;align-items:start}
+.place-row + .place-row{margin-top:8px}
+.place-row .pl{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#111;background:#fff;margin-top:2px}
+.place-row .pl.p1{background:var(--gold)} .place-row .pl.p2{background:var(--silver)} .place-row .pl.p3{background:var(--bronze)}
+.place-row .cols{display:flex;flex-direction:column;gap:8px;min-width:0}
+.up{display:flex;align-items:center;gap:10px}
+.up-prev{width:96px;aspect-ratio:16/9;border-radius:8px;background:var(--surface-2) center/cover no-repeat;flex-shrink:0;display:grid;place-items:center;font-size:11px;color:var(--dim)}
+.up label{cursor:pointer}
+.up input[type=file]{display:none}
+
+/* Janglar */
+.mt{background:var(--surface);border-radius:var(--r);padding:12px}
+.mt + .mt{margin-top:8px}
+.mt-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-bottom:8px}
+.mt-side{display:flex;gap:8px;align-items:center}
+.mt-side + .mt-side{margin-top:6px}
+.mt-side .fld{flex:1}
+.mt-side .btn{flex-shrink:0}
+.mt-side.win select{border-color:var(--green)}
+.mt-win{font-size:11px;font-weight:700;color:var(--green);width:52px;text-align:center;flex-shrink:0}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:80;background:var(--text);color:#111;font-weight:600;font-size:13px;padding:10px 16px;border-radius:12px;max-width:calc(100% - 32px);box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.toast.err{background:var(--accent);color:#fff}
+.stat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat div{background:var(--surface);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-family:var(--display);font-size:18px}
+.stat span{font-size:11px;color:var(--muted)}
+details.a-more summary{cursor:pointer;font-size:12.5px;color:var(--muted);margin-top:10px;list-style:none}
+details.a-more summary::-webkit-details-marker{display:none}

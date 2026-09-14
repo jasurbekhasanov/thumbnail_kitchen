@@ -26,6 +26,8 @@
   .top{position:sticky;top:0;z-index:20;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
   .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
   .logo{display:block;height:34px;width:auto}
+  .bar-actions{display:flex;gap:8px;align-items:center}
+  .admin-btn{background:var(--surface-2);color:var(--text);font-weight:600;font-size:13px;padding:8px 12px;border-radius:999px;border:1px solid var(--line)}
   .sponsor{background:var(--text);color:#111;font-weight:600;font-size:13px;padding:8px 14px;border-radius:999px}
   .seg{display:flex;margin:0 16px;padding:4px;background:var(--surface);border-radius:12px;gap:4px}
   .seg button{flex:1;padding:9px 0;border-radius:9px;font-weight:600;color:var(--muted);transition:.15s}
@@ -237,7 +239,10 @@
   <header class="top">
     <div class="bar">
       <img class="logo" src="assets/kitchen.svg" alt="Thumbnail Kitchen">
-      <button class="sponsor" id="sponsor">Homiy bo‘lish</button>
+      <div class="bar-actions">
+        <button class="admin-btn" id="adminBtn" hidden>Admin</button>
+        <button class="sponsor" id="sponsor">Homiy bo‘lish</button>
+      </div>
     </div>
     <div class="seg" id="seg">
       <button data-v="ch" class="on">Chellenj</button>
@@ -361,6 +366,24 @@
   }
 
   $('#sponsor').onclick = () => openTg(D.sponsorUrl);
+
+  // Admin panel: faqat adminlarga, bosilganda yuklanadi (oddiy foydalanuvchilarga admin.js umuman kelmaydi)
+  window.TK = { api, tg, esc, fmt, haptic, initData };
+  if (!DEMO && me && me.isAdmin) {
+    const btn = $('#adminBtn');
+    btn.hidden = false;
+    let loading = null;
+    const loadAdmin = () => loading ||= new Promise((resolve, reject) => {
+      const css = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'admin.css' });
+      const js = Object.assign(document.createElement('script'), { src: 'admin.js', onload: resolve, onerror: () => { loading = null; reject(new Error('Admin panel yuklanmadi')); } });
+      document.head.append(css, js);
+    });
+    btn.onclick = async () => {
+      haptic();
+      try { await loadAdmin(); window.TKAdmin.open(); }
+      catch (e) { tg && tg.showAlert ? tg.showAlert(e.message) : alert(e.message); }
+    };
+  }
 
   /* ---------- Top switch ---------- */
   let view = store.get('tk_view') || 'ch';

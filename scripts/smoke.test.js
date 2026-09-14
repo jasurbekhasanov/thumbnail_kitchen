@@ -84,6 +84,8 @@ test('mavsum: 12 tur → 1/8 final avtomatik, g‘olib keyingi bosqichga', async
   const post = (path, body) => api('POST', path, { user: ADMIN, body });
 
   assert.equal((await post('/api/admin/seasons', { label: '2026', start: '2026-07-07' })).status, 400, 'seshanba — rad');
+  const draft = (await post('/api/admin/seasons', { label: 'xato', start: '2026-06-01' })).body;
+  assert.equal((await api('DELETE', `/api/admin/seasons/${draft.id}`, { user: ADMIN })).status, 200, 'natijasiz mavsum o‘chadi');
   const season = (await post('/api/admin/seasons', { label: '2026', start: '2026-07-06' })).body;
 
   // Jami 17 dizayner (1 tasi ro'yxatdan o'tgan)
@@ -128,6 +130,7 @@ test('mavsum: 12 tur → 1/8 final avtomatik, g‘olib keyingi bosqichga', async
   // Chorak final hal bo'lgach, 1/8 natijasini o'zgartirib bo'lmaydi
   await api('PATCH', `/api/admin/matches/${qf.id}`, { user: ADMIN, body: { winner: Number(qf.a) } });
   assert.equal((await api('PATCH', `/api/admin/matches/${m0.id}`, { user: ADMIN, body: { winner: Number(m0.b) } })).status, 409);
+  assert.equal((await api('DELETE', `/api/admin/seasons/${season.id}`, { user: ADMIN })).status, 409, 'natijali mavsum o‘chmaydi');
   // Qayta to'ldirish ham rad — natijalar bor
   assert.equal((await post(`/api/admin/seasons/${season.id}/seed`)).body.seeded, false);
 });
