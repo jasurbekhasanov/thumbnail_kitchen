@@ -181,3 +181,26 @@ test('pin xabarlari: tugmalar bo‘limga olib boradi', () => {
   // Har bir tugma matni Telegram cheklovidan oshmasin, havola https bo'lsin
   for (const k of pins.KINDS) for (const row of pins.build(k, { botUsername: 'b' }).reply_markup.inline_keyboard) for (const b of row) assert.match(b.url, /^https:\/\//);
 });
+
+test('ro‘yxatdan o‘tgan odamni o‘chirish', async () => {
+  const NEW = { id: 4000, first_name: 'Test', username: 'test_user4000' };
+  await api('POST', '/api/register', { user: NEW, body: { roles: ['designer'], interests: ['feedback'] } });
+  assert.equal((await api('DELETE', `/api/admin/users/${NEW.id}`, { user: USER })).status, 403, 'admin emas');
+  const del = await api('DELETE', `/api/admin/users/${NEW.id}`, { user: ADMIN });
+  assert.equal(del.status, 200);
+  assert.equal(del.body.designer, 'deleted', 'natijasiz dizayner o‘chadi');
+  assert.equal((await api('GET', '/api/me', { user: NEW })).body.registered, false, 'qayta ro‘yxatdan o‘tishi kerak');
+  assert.equal((await api('DELETE', `/api/admin/users/${NEW.id}`, { user: ADMIN })).status, 404);
+
+  // Natijasi bor dizayner: yozuv va ochkolar qoladi, Telegram'dan uziladi
+  const { rows: [d] } = await db.query(`SELECT id FROM designers WHERE tg_id = $1`, [USER.id]);
+  const c = (await api('POST', '/api/admin/challenges', { user: ADMIN, body: { no: 99, title: 'O‘chirish testi', date: '2026-08-01' } })).body;
+  await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results: [{ place: 1, designer_id: d.id }] } });
+  const kept = await api('DELETE', `/api/admin/users/${USER.id}`, { user: ADMIN });
+  assert.equal(kept.body.designer, 'kept');
+  const { rows: [after] } = await db.query(`SELECT tg_id, name FROM designers WHERE id = $1`, [d.id]);
+  assert.equal(after.tg_id, null);
+  assert.equal(after.name, 'Siroj Rustamov');
+  const { rows: res } = await db.query(`SELECT 1 FROM results WHERE designer_id = $1`, [d.id]);
+  assert.equal(res.length, 1, 'natija saqlandi');
+});

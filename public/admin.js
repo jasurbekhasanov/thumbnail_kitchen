@@ -321,7 +321,10 @@
             <div class="grow"><b>${esc(name)}${u.username ? ` <span style="color:var(--muted);font-weight:400">@${esc(u.username)}</span>` : ''}</b>
               <small>${u.roles.map(r => ROLE_NAMES[r] || r).join(', ')} · ${u.interests.map(i => INT_NAMES[i] || i).join(', ')}</small>
               ${u.tag_error ? `<small style="color:var(--accent-ink)">${esc(u.tag_error)}</small>` : ''}</div>
-            ${u.tag ? `<span class="badge tag">${esc(u.tag)}</span>` : u.tag_error ? '<span class="badge err">Tagsiz</span>' : ''}
+            <div class="u-side">
+              ${u.tag ? `<span class="badge tag">${esc(u.tag)}</span>` : u.tag_error ? '<span class="badge err">Tagsiz</span>' : ''}
+              <button class="btn sm danger" data-act="us-del" data-id="${u.tg_id}" data-name="${esc(name)}">O‘chirish</button>
+            </div>
           </div>`;
         }).join('') || '<div class="a-empty">Hozircha hech kim yo‘q</div>'}
         </div>
@@ -414,6 +417,13 @@
       return api(`/api/admin/matches/${id}`, { method: 'PATCH', body });
     }, 'Saqlandi'),
 
+    'us-del': async btn => {
+      const ok = await confirmBox(`${btn.dataset.name} ro‘yxatdan o‘chiriladi va guruhdagi tagi olib tashlanadi. Ilovani ochganda qayta ro‘yxatdan o‘tishi kerak bo‘ladi. Davom etasizmi?`);
+      if (!ok) return;
+      act(btn, () => api(`/api/admin/users/${btn.dataset.id}`, { method: 'DELETE' }), r =>
+        r.designer === 'kept' ? 'O‘chirildi. Chellenj natijalari bor — dizayner sifatida ismi va ochkolari saqlandi'
+          : r.hadTag && !r.tagRemoved ? 'O‘chirildi, lekin tagni olib bo‘lmadi — guruhda qo‘lda olib tashlang' : 'O‘chirildi');
+    },
     'sh-add': btn => act(btn, () => api('/api/admin/sahna', { method: 'POST', body: { url: val('#sh-url') } }), p => `${p.designer} qo‘shildi`),
     'sh-del': async btn => {
       if (!(await confirmBox('Maqola ilovadan olib tashlanadi (Teletype’da qoladi). Davom etasizmi?'))) return;

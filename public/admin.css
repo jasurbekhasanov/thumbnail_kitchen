@@ -86,3 +86,4 @@ details.a-more summary::-webkit-details-marker{display:none}
 .i-top b{font-weight:600;color:var(--muted);font-size:12px}
 .i-bar .track{height:6px;border-radius:6px;background:var(--surface-2);overflow:hidden}
 .i-bar .fill{height:100%;background:var(--accent);border-radius:6px}
+.u-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}

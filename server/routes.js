@@ -168,6 +168,33 @@ admin.patch('/designers/:id', wrap(async req => {
   return d;
 }));
 
+// Ro'yxatdan o'tgan odamni o'chirish: ro'yxat + guruhdagi tag.
+// Dizayner yozuvi natijasi bo'lmasa o'chadi; natijasi bo'lsa liga tarixi uchun qoladi (Telegram'dan uziladi).
+admin.delete('/users/:tgId', wrap(async req => {
+  const tgId = int(req.params.tgId, 'Telegram ID', { min: 1, max: 1e13 });
+  const out = await db.tx(async t => {
+    const { rows: [u] } = await t.query(`SELECT tg_id, tag FROM users WHERE tg_id = $1`, [tgId]);
+    if (!u) throw httpError(404, 'Foydalanuvchi topilmadi');
+    const { rows: [d] } = await t.query(`SELECT id FROM designers WHERE tg_id = $1`, [tgId]);
+    let designer = null;
+    if (d) {
+      const { rows: [{ n }] } = await t.query(
+        `SELECT (SELECT count(*) FROM results WHERE designer_id = $1) + (SELECT count(*) FROM matches WHERE $1 IN (a, b, winner)) AS n`, [d.id]);
+      if (Number(n) === 0) { await t.query(`DELETE FROM designers WHERE id = $1`, [d.id]); designer = 'deleted'; }
+      else designer = 'kept';
+    }
+    await t.query(`DELETE FROM users WHERE tg_id = $1`, [tgId]); // saqlangan dizaynerda tg_id avtomatik NULL bo'ladi
+    return { ok: true, designer, hadTag: Boolean(u.tag) };
+  });
+  // Tagni olib tashlash (bo'sh tag). Xato bo'lsa ham o'chirish bekor qilinmaydi.
+  let tagRemoved = false;
+  if (out.hadTag && process.env.GROUP_CHAT_ID) {
+    try { await tg.call('setChatMemberTag', { chat_id: process.env.GROUP_CHAT_ID, user_id: tgId, tag: '' }); tagRemoved = true; }
+    catch (e) { console.warn(`[tag] ${tgId} olib tashlanmadi: ${e.message}`); }
+  }
+  return { ...out, tagRemoved };
+}));
+
 // Muqova rasmlari: frontend JPEG'ga siqib yuboradi
 admin.post('/images', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }), wrap(async req => {
   if (!Buffer.isBuffer(req.body) || !req.body.length) throw httpError(400, 'Rasm yuborilmadi (image/jpeg, png yoki webp)');
