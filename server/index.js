@@ -51,6 +51,7 @@ function createApp() {
 
 async function main() {
   await db.connect();
+  await require('../scripts/seed').seedSahnaIfEmpty();
   const app = createApp();
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, () => console.log(`Thumbnail Kitchen: http://localhost:${port} (baza: ${db.kind})`));

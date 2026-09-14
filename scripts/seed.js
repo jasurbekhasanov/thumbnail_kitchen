@@ -54,7 +54,15 @@ async function seedDemo(D) {
   console.log(`Demo: ${D.designers.length} dizayner, ${D.challenges.length} chellenj, 1 mavsum`);
 }
 
-(async () => {
+// Server ishga tushganda: Sahna orti bo'sh bo'lsa, data.js dagi haqiqiy maqolalarni yozadi (bir marta)
+async function seedSahnaIfEmpty() {
+  const { rows: [{ n }] } = await db.query(`SELECT count(*)::int AS n FROM sahna_posts`);
+  if (n === 0) await seedSahna(loadDemo());
+}
+
+module.exports = { seedSahnaIfEmpty };
+
+if (require.main === module) (async () => {
   const args = process.argv.slice(2);
   await db.connect();
   const D = loadDemo();
