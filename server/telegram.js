@@ -81,6 +81,12 @@ async function handleUpdate(update) {
   const msg = update.message;
   if (!msg) return;
 
+  // /chatid — GROUP_CHAT_ID ni bilish uchun (guruhda yozing)
+  if (/^\/chatid\b/.test(msg.text || '')) {
+    await call('sendMessage', { chat_id: msg.chat.id, text: `Chat ID: ${msg.chat.id}` });
+    return;
+  }
+
   if (msg.chat.type === 'private' && /^\/start\b/.test(msg.text || '')) {
     if (!appUrl) return;
     await call('sendMessage', {

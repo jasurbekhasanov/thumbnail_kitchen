@@ -46,7 +46,7 @@ npm test
 - **Bot guruhda admin** bo‘lishi va **“Manage tags”** (`can_manage_tags`) huquqi berilishi kerak.
 - Guruh sozlamalarida a’zolarning o‘z tagini o‘zgartirishini o‘chiring.
 - Guruh adminlari va egasiga Telegram tag qo‘yishga ruxsat bermaydi — ular ro‘yxatdan o‘tsa ham tagsiz qoladi.
-- `GROUP_CHAT_ID`: botni guruhga qo‘shib, guruhda xabar yozing va `https://api.telegram.org/bot<TOKEN>/getUpdates` dan `chat.id` ni oling (webhook o‘rnatilishidan oldin).
+- `GROUP_CHAT_ID`: `BOT_TOKEN` qo‘yilgach, guruhda `/chatid` deb yozing — bot guruh ID'sini qaytaradi.
 - Guruhdagi “Ro‘yxatdan o‘tish” tugmasi uchun BotFather → `/newapp` bilan Mini App yarating va havolani `MINIAPP_LINK` ga yozing.
 
 ## Admin API
