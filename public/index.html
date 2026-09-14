@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Thumbnail Kitchen</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0f11; --surface:#17191c; --surface-2:#1f2226; --line:#2a2e33;
+    --text:#f2f3f5; --muted:#8b9098; --dim:#5d626a;
+    --accent:#fb1b02; --accent-ink:#ff5a45; --accent-soft:rgba(251,27,2,.14);
+    --gold:#f5b942; --silver:#c9ced6; --bronze:#d08a55; --green:#3ecf7a;
+    --r:14px;
+    --display:'Unbounded', 'Inter', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 'Inter',system-ui,-apple-system,sans-serif}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+  .app{max-width:560px;margin:0 auto;min-height:100vh;padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+  [hidden]{display:none!important}
+
+  /* Header */
+  .top{position:sticky;top:0;z-index:20;background:rgba(14,15,17,.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
+  .logo{display:block;height:34px;width:auto}
+  .sponsor{background:var(--text);color:#111;font-weight:600;font-size:13px;padding:8px 14px;border-radius:999px}
+  .seg{display:flex;margin:0 16px;padding:4px;background:var(--surface);border-radius:12px;gap:4px}
+  .seg button{flex:1;padding:9px 0;border-radius:9px;font-weight:600;color:var(--muted);transition:.15s}
+  .seg button.on{background:var(--surface-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+
+  /* Challenge chips */
+  .chips-row{display:flex;align-items:center;gap:8px;padding:12px 0 10px 16px}
+  .chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;flex:1;padding-right:8px}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{white-space:nowrap;min-width:48px;text-align:center;font-variant-numeric:tabular-nums;padding:7px 12px;border-radius:999px;background:var(--surface);color:var(--muted);font-weight:500;font-size:13px;border:1px solid transparent}
+  .chip.on{color:var(--text);border-color:var(--accent);background:var(--accent-soft)}
+  .all-btn{margin-right:16px;padding:7px 14px;border-radius:999px;font-weight:600;font-size:13px;background:var(--surface-2);flex-shrink:0;box-shadow:-14px 0 14px var(--bg)}
+  .all-btn.on{background:var(--accent);color:#fff}
+
+  /* Challenge feed */
+  .feed{padding:6px 16px}
+  .ch{margin:10px 0 28px}
+  .ch-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .ch-no{flex-shrink:0;font-size:11px;font-weight:600;color:var(--muted);border:1px solid var(--line);padding:4px 9px;border-radius:999px}
+  .ch-title{font-family:var(--display);font-weight:600;font-size:16px;line-height:1.25;margin:0}
+  .ch-date{margin-left:auto;font-size:12px;color:var(--dim);white-space:nowrap}
+  .works{display:grid;gap:10px}
+  .work{display:block;width:100%;text-align:left;background:var(--surface);border-radius:var(--r);padding:6px;transition:transform .12s}
+  .work:active{transform:scale(.985)}
+  .thumb{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;display:grid;place-items:center}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb .ph{font-family:var(--display);font-weight:800;font-size:22px;color:rgba(255,255,255,.92);text-align:center;padding:0 24px;text-shadow:0 2px 12px rgba(0,0,0,.35);line-height:1.1}
+  .place{position:absolute;top:8px;left:8px;min-width:28px;height:28px;padding:0 8px;border-radius:999px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#111;background:#fff}
+  .place.p1{background:var(--gold)} .place.p2{background:var(--silver)} .place.p3{background:var(--bronze)}
+  .pts{position:absolute;top:8px;right:8px;font-size:12px;font-weight:600;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:999px}
+  .work-meta{display:flex;align-items:center;gap:8px;padding:9px 6px 5px}
+  .work-meta .name{font-weight:600}
+  .work-meta .go{margin-left:auto;color:var(--dim);font-size:12px}
+  .works.compact{grid-template-columns:1fr 1fr}
+  .works.compact .thumb .ph{font-size:13px;padding:0 10px}
+  .works.compact .work:not(:first-child) .go{display:none}
+  .works.compact .work:not(:first-child) .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .works.compact .work:first-child{grid-column:1/-1}
+  .works.compact .work:first-child .thumb .ph{font-size:22px}
+
+  .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:700;color:#111;flex-shrink:0}
+  .av.lg{width:34px;height:34px;font-size:13px}
+  .av.tbd{background:var(--surface-2);color:var(--dim)}
+
+  /* League */
+  .lg-hero{padding:20px 16px 6px;text-align:center}
+  .lg-emblem{width:54px;height:54px;margin:0 auto 10px;border-radius:16px;background:linear-gradient(145deg,var(--accent),#ff7a45);display:grid;place-items:center;font-size:26px}
+  .lg-hero h1{font-family:var(--display);font-weight:800;font-size:22px;margin:0;letter-spacing:-.3px}
+  .season{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:8px;border:1px solid var(--line);color:var(--muted)}
+  .stages{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:10px;margin:18px 0 0;text-align:left}
+  .champ{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;border-radius:var(--r);background:var(--surface);border:1px solid var(--gold);text-align:left}
+  .champ span{display:block;font-size:11px;color:var(--muted)}
+  .champ b{font-size:15px}
+  .champ .next{margin-left:auto;text-align:right}
+  .champ .next b{font-size:13px;color:var(--gold)}
+  .stage{opacity:.5}
+  .stage.on{opacity:1}
+  .stage-top{display:flex;flex-direction:column;font-size:11px;color:var(--muted);margin-bottom:6px;gap:1px}
+  .stage-top b{color:var(--text);font-weight:600;font-size:12px;white-space:nowrap}
+  .stage .track{height:6px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+  .stage .fill{height:100%;background:var(--text);border-radius:6px}
+  .stage.on .fill{background:var(--accent)}
+  .lg-hero .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-top:7px}
+  .note{font-size:12.5px;color:var(--muted);background:var(--surface);border-left:3px solid var(--accent);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+  .note b{color:var(--text)}
+  .pause{display:flex;align-items:center;gap:12px;background:var(--accent-soft);border:1px solid rgba(251,27,2,.35);border-radius:var(--r);padding:12px 14px;margin:4px 0 8px}
+  .pause b{display:block;font-size:14px;margin-bottom:2px}
+  .pause span{font-size:12.5px;color:var(--muted)}
+  .pause button{flex-shrink:0;background:var(--accent);color:#fff;font-weight:600;font-size:13px;padding:8px 12px;border-radius:999px}
+  .cal-month{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:18px 4px 8px}
+  .cal-month:first-child{margin-top:0}
+  .cal{display:flex;align-items:stretch;gap:12px;padding:12px 14px}
+  .cal + .cal{border-top:1px solid var(--line)}
+  .cal.tap{cursor:pointer}
+  .cal.now{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+  .cal .m-date{width:52px}
+  .cal-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .cal-body b{font-weight:600;font-size:14px}
+  .cal-body .ic{margin-right:6px}
+  .cal-body span{font-size:12.5px;color:var(--muted)}
+  .cal-body .meta{color:var(--dim);font-size:11.5px}
+  .tour-now{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:4px 0 8px}
+  .tn-top{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:8px}
+  .tour-now > b{font-family:var(--display);font-weight:600;font-size:16px;display:block}
+  .tn-dates{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}
+  .tn-dates div{background:var(--surface-2);border-radius:10px;padding:8px 6px;text-align:center}
+  .tn-dates span{display:block;font-size:10.5px;color:var(--muted)}
+  .tn-dates b{font-size:13px}
+  .tn-dates .left{background:var(--accent-soft)}
+  .tn-dates .left b{color:var(--accent-ink)}
+  .tour-now button{width:100%;padding:10px;border-radius:10px;background:var(--surface-2);font-weight:600;font-size:13px}
+  .rules-foot{grid-column:1/-1;text-align:left;font-size:12px;color:var(--muted);padding-top:4px}
+  .tabs{display:flex;border-bottom:1px solid var(--line);margin-top:14px;padding:0 8px;overflow-x:auto;scrollbar-width:none}
+  .tabs button{flex:1;white-space:nowrap;padding:12px 8px;color:var(--muted);font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tabs button.on{color:var(--text);border-color:var(--accent)}
+  .pane{padding:14px 16px}
+
+  .card{background:var(--surface);border-radius:var(--r);overflow:hidden}
+  .table{width:100%;border-collapse:collapse}
+  .table th{font-size:11px;font-weight:500;color:var(--dim);text-align:right;padding:12px 10px 8px;text-transform:uppercase;letter-spacing:.6px}
+  .table th:nth-child(1),.table th:nth-child(2){text-align:left}
+  .table td{vertical-align:middle;padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums;border-top:1px solid rgba(255,255,255,.03)}
+  .table td:nth-child(2){text-align:left}
+  .table td:last-child{font-weight:700}
+  .rank{width:24px;height:24px;border-radius:50%;display:inline-grid;vertical-align:middle;place-items:center;font-size:12px;font-weight:700;background:var(--surface-2);color:var(--muted)}
+  .rank.qual{background:rgba(62,207,122,.18);color:var(--green)}
+  .who{display:flex;align-items:center;gap:10px;font-weight:500}
+  .cut td{border-top:1px dashed var(--dim)}
+  .legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:12px 4px 0}
+  .legend i{width:10px;height:10px;border-radius:50%;background:var(--green);display:inline-block}
+  .rules{margin-top:14px;padding:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+  .rules div{background:var(--surface-2);border-radius:10px;padding:10px 4px}
+  .rules b{display:block;font-family:var(--display);font-size:16px}
+  .rules span{font-size:11px;color:var(--muted)}
+  .rules-title{grid-column:1/-1;text-align:left;font-weight:600;font-size:13px;padding-bottom:2px}
+
+  .select{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:12px}
+  .select button{white-space:nowrap;padding:8px 14px;border-radius:10px;border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:13px}
+  .select button.on{background:var(--text);color:#111;border-color:var(--text)}
+  .match{display:flex;align-items:stretch;padding:12px 14px;gap:12px}
+  .match + .match{border-top:1px solid var(--line)}
+  .m-date{width:62px;flex-shrink:0;border-right:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;flex-direction:column;justify-content:center;gap:2px;padding-right:10px}
+  .m-date b{color:var(--text);font-weight:600}
+  .m-teams{flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center;min-width:0}
+  .m-row{display:flex;align-items:center;gap:9px}
+  .m-row.lose{opacity:.45}
+  .m-row .win{margin-left:auto;font-size:11px;font-weight:700;color:var(--green)}
+  .m-state{flex-shrink:0;align-self:center;font-size:11px;font-weight:600;padding:5px 9px;border-radius:999px;white-space:nowrap}
+  .st-done{background:rgba(62,207,122,.14);color:var(--green)}
+  .st-live{background:var(--accent-soft);color:var(--accent-ink)}
+  .st-soon{background:var(--surface-2);color:var(--muted)}
+
+  /* Bracket */
+  .bracket{--gap:6px;display:grid;grid-template-columns:repeat(8,1fr);column-gap:var(--gap);padding:4px 0 8px}
+  .b-cell{display:flex;justify-content:center;min-width:0}
+  .b-card{background:var(--surface);border-radius:10px;padding:8px 4px 7px;display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;max-width:120px}
+  .b-card.final{border:1px solid var(--gold);max-width:150px}
+  .b-pair{display:flex;gap:4px;justify-content:center}
+  .b-side{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+  .b-side span{font-size:10px;font-weight:600;letter-spacing:.2px}
+  .b-side.lose{opacity:.4}
+  .b-side .av{width:24px;height:24px;font-size:10px}
+  .b-date{font-size:10px;color:var(--dim)}
+  .b-link{grid-column:span 4;height:18px;position:relative}
+  .b-link::before{content:'';position:absolute;left:25%;right:25%;top:0;height:9px;border:2px solid var(--line);border-top:0}
+  .b-link::after{content:'';position:absolute;left:50%;top:9px;height:9px;border-left:2px solid var(--line);transform:translateX(-1px)}
+  .b-link.w8{grid-column:span 8}
+  .b-link.up::before{top:auto;bottom:0;border-top:2px solid var(--line);border-bottom:0}
+  .b-link.up::after{top:0}
+  .b-vert{grid-column:span 8;height:14px;position:relative}
+  .b-vert::after{content:'';position:absolute;left:50%;top:0;bottom:0;border-left:2px solid var(--line);transform:translateX(-1px)}
+  .b-round{grid-column:1/-1;text-align:center;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin:2px 0 6px}
+  .trophy{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:12px;position:relative}
+  .trophy .cup{font-size:34px;position:absolute;left:calc(50% - 125px)}
+
+  /* Designs list */
+  .dz{display:flex;gap:12px;padding:8px;align-items:stretch;width:100%;text-align:left}
+  .dz + .dz{border-top:1px solid var(--line)}
+  .dz .thumb{width:46%;flex-shrink:0}
+  .dz .thumb .ph{font-size:12px;padding:0 8px}
+  .dz-info{display:flex;flex-direction:column;min-width:0;padding:2px 0}
+  .dz-info b{font-weight:600;font-size:14px;line-height:1.25}
+  .dz-info .sub{color:var(--muted);font-size:12px;margin-top:3px}
+  .dz-info .foot{margin-top:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .dz-info .foot .p{color:var(--accent-ink);font-weight:700}
+
+  .empty{padding:32px;text-align:center;color:var(--muted)}
+
+  /* Sahna orti */
+  .sh-hero{padding:22px 16px 6px;text-align:center}
+  .sh-logo{height:44px;width:auto;display:block;margin:0 auto 12px}
+  .sh-hero p{margin:0 auto;max-width:320px;color:var(--muted);font-size:13.5px}
+  .sh-list{padding:18px 16px 4px;display:grid;gap:26px}
+  .post{display:block;width:100%;text-align:left;transition:transform .12s}
+  .post:active{transform:scale(.985)}
+  .post-cover{aspect-ratio:1200/630;border-radius:12px;overflow:hidden;background:var(--surface-2)}
+  .post-cover img{width:100%;height:100%;object-fit:cover;display:block}
+  .post-meta{font-size:12px;color:var(--muted);margin:10px 0 4px}
+  .post h3{font-family:var(--display);font-weight:600;font-size:18px;margin:0 0 4px;line-height:1.25;letter-spacing:-.2px}
+  .post p{margin:0;font-size:13.5px;line-height:1.45;color:#c7cbd1}
+  .sh-apply{margin-top:14px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);font-weight:600;font-size:13px;padding:9px 16px;border-radius:999px}
+  .sh-all{display:block;margin:18px auto 0;color:var(--muted);font-size:12.5px;padding:8px}
+
+  /* Onboarding */
+  .ob{position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto}
+  .ob-in{max-width:560px;margin:0 auto;padding:28px 16px calc(110px + env(safe-area-inset-bottom))}
+  .ob h2{font-family:var(--display);font-weight:800;font-size:24px;line-height:1.15;margin:18px 0 6px;letter-spacing:-.3px}
+  .ob p.lead{color:var(--muted);margin:0 0 22px}
+  .q{margin-bottom:22px}
+  .q h3{font-size:15px;margin:0 0 4px}
+  .q .hint{font-size:12px;color:var(--dim);margin-bottom:10px}
+  .opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--surface);border:1.5px solid transparent;border-radius:var(--r);padding:14px;margin-bottom:8px;transition:.15s}
+  .opt .ic{width:38px;height:38px;border-radius:10px;background:var(--surface-2);display:grid;place-items:center;font-size:19px;flex-shrink:0}
+  .opt b{display:block;font-size:14px;margin-bottom:2px}
+  .opt span{font-size:12.5px;color:var(--muted);line-height:1.35}
+  .opt .tick{margin-left:auto;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);flex-shrink:0;display:grid;place-items:center;font-size:12px;color:#fff}
+  .opt.on{border-color:var(--accent);background:var(--accent-soft)}
+  .opt.on .tick{background:var(--accent);border-color:var(--accent)}
+  .opt.on .tick::after{content:'✓';font-weight:700}
+  .opt[disabled]{opacity:.5}
+  .soon{font-size:10px;font-weight:700;color:var(--accent-ink);background:var(--accent-soft);padding:2px 6px;border-radius:6px;margin-left:6px;vertical-align:2px}
+  .ob-foot{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--bg) 30%)}
+  .cta{display:block;width:100%;max-width:528px;margin:0 auto;background:var(--accent);color:#fff;font-weight:700;font-size:15px;padding:15px;border-radius:14px}
+  .cta:disabled{background:var(--surface-2);color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="bar">
+      <img class="logo" src="assets/kitchen.svg" alt="Thumbnail Kitchen">
+      <button class="sponsor" id="sponsor">Homiy bo‘lish</button>
+    </div>
+    <div class="seg" id="seg">
+      <button data-v="ch" class="on">Chellenj</button>
+      <button data-v="lg">Liga</button>
+      <button data-v="sh">Sahna orti</button>
+    </div>
+    <div class="chips-row" id="chipsRow">
+      <div class="chips" id="chips"></div>
+      <button class="all-btn on" id="allBtn">All</button>
+    </div>
+  </header>
+
+  <main id="viewCh" class="feed"></main>
+  <main id="viewLg" hidden></main>
+  <main id="viewSh" hidden></main>
+</div>
+
+<div class="ob" id="ob" hidden>
+  <div class="ob-in">
+    <img class="logo" src="assets/kitchen.svg" alt="Thumbnail Kitchen">
+    <h2>Guruhga xush kelibsiz!</h2>
+    <p class="lead">Guruhdan to‘liq foydalanish uchun ikki savolga javob bering.</p>
+
+    <div class="q">
+      <h3>Muqova dizaynerimisiz va/yoki YouTubermisiz?</h3>
+      <div class="hint">Mos keladigan variantlarni tanlang</div>
+      <button class="opt" data-g="role" data-v="designer"><div class="ic">🎨</div><div><b>Men muqova dizaynerman</b><span>Guruhda “Muqova Designer” rolini beradi. Ligada qatnashish ro‘yxatiga kirasiz.</span></div><div class="tick"></div></button>
+      <button class="opt" data-g="role" data-v="youtuber"><div class="ic">▶️</div><div><b>Men YouTuberman</b><span>Guruhda “YouTuber” rolini beradi.</span></div><div class="tick"></div></button>
+    </div>
+
+    <div class="q">
+      <h3>Guruhdagi nimaga qiziqdingiz?</h3>
+      <div class="hint">Mos keladigan variantlarni tanlang</div>
+      <button class="opt" data-g="int" data-v="feedback"><div class="ic">💬</div><div><b>Dizayn fidbeklari</b><span>Muqovalaringizni yaxshilash uchun konstruktiv tanqid bering yoki so‘rang.</span></div><div class="tick"></div></button>
+      <button class="opt" data-g="int" data-v="inspiration"><div class="ic">🖼️</div><div><b>Thumbnail ilhomlari<span class="soon">TEZ KUNDA</span></b><span>Yaxshi natija beradigan yuzlab muqovalarni ko‘rib chiqing.</span></div><div class="tick"></div></button>
+      <button class="opt" data-g="int" data-v="challenges"><div class="ic">🏆</div><div><b>Haftalik dizayn chellenjlari</b><span>Har haftalik topshiriq bilan mahoratingizni sinang va liga reytingida ko‘tariling.</span></div><div class="tick"></div></button>
+    </div>
+  </div>
+  <div class="ob-foot"><button class="cta" id="obSubmit" disabled>Davom etish</button></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(async () => {
+  const tg = window.Telegram && Telegram.WebApp;
+  if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor('#0e0f11'); tg.setBackgroundColor('#0e0f11'); } catch(e){} }
+  const $ = s => document.querySelector(s);
+  const qs = new URLSearchParams(location.search);
+
+  // Ma'lumot serverdan (/api/state). ?demo=1, fayl sifatida ochilganda yoki server javob bermasa — demo (data.js).
+  const initData = (tg && tg.initData) || '';
+  const api = async (path, { method = 'GET', body } = {}) => {
+    const res = await fetch(path, { method, headers: { 'content-type': 'application/json', 'x-telegram-init-data': initData }, body: body && JSON.stringify(body) });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+  };
+  let DEMO = qs.has('demo') || location.protocol === 'file:';
+  let D = null, me = null;
+  if (!DEMO) {
+    try {
+      [D, me] = await Promise.all([api('/api/state'), api('/api/me').catch(() => null)]); // Telegram'dan tashqarida me = null
+    } catch (e) {
+      console.warn('Server javob bermadi, demo rejim:', e.message);
+      DEMO = true;
+    }
+  }
+  if (DEMO) D = window.TK_DEMO;
+  const haptic = () => { try { tg && tg.HapticFeedback.selectionChanged(); } catch(e){} };
+  const openTg = url => { if (!url) return; haptic(); if (tg && tg.openTelegramLink && /t\.me\//.test(url)) tg.openTelegramLink(url); else window.open(url, '_blank'); };
+  // Teletype maqolalari Telegram ichida Instant View bilan ochiladi
+  const openArticle = url => { haptic(); if (tg && tg.openLink) tg.openLink(url, { try_instant_view: true }); else window.open(url, '_blank'); };
+  const store = { get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } }, set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} } };
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  const byId = Object.fromEntries(D.designers.map(d => [d.id, d]));
+  const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const avatar = (id, cls = '') => {
+    const d = byId[id];
+    if (!d) return `<div class="av tbd ${cls}">?</div>`;
+    return `<div class="av ${cls}" style="background:hsl(${hue(d.id + d.name)} 70% 66%)">${esc(d.name[0])}</div>`;
+  };
+  const MONTHS = ['yan','fev','mar','apr','may','iyn','iyl','avg','sen','okt','noy','dek'];
+  const fmt = iso => { const d = new Date(iso); return `${d.getDate()} ${MONTHS[d.getMonth()]}`; };
+  const today = DEMO ? new Date('2026-09-14') : new Date();
+  // Mahalliy sana (UTC emas) — Toshkentda yarim tundan keyin kun to'g'ri almashsin
+  const localIso = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  const thumb = (r, ch) => r.thumb
+    ? `<img src="${esc(r.thumb)}" alt="" loading="lazy">`
+    : `<div class="ph">${esc(ch.title)}</div>`;
+  const thumbBg = (r, ch) => { const h = hue(ch.title + r.designer); return r.thumb ? '' : `background:linear-gradient(135deg,hsl(${h} 65% 42%),hsl(${(h + 50) % 360} 70% 22%))`; };
+
+  /* ---------- Registration ---------- */
+  // Demo: localStorage; haqiqiy rejim: server (faqat Telegram ichida, ro'yxatdan o'tmagan bo'lsa)
+  const needReg = DEMO ? (!store.get('tk_reg') || qs.has('reset')) : Boolean(me && !me.registered);
+  if (needReg) {
+    const ob = $('#ob'); ob.hidden = false;
+    const sel = { role: new Set(), int: new Set() };
+    ob.addEventListener('click', e => {
+      const b = e.target.closest('.opt'); if (!b) return;
+      const set = sel[b.dataset.g];
+      set.has(b.dataset.v) ? set.delete(b.dataset.v) : set.add(b.dataset.v);
+      b.classList.toggle('on'); haptic();
+      $('#obSubmit').disabled = !(sel.role.size && sel.int.size);
+    });
+    $('#obSubmit').onclick = async () => {
+      const payload = { roles: [...sel.role], interests: [...sel.int] };
+      const btn = $('#obSubmit');
+      btn.disabled = true; btn.textContent = 'Saqlanmoqda…';
+      try {
+        if (DEMO) store.set('tk_reg', payload);
+        else await api('/api/register', { method: 'POST', body: payload });
+        try { tg && tg.HapticFeedback.notificationOccurred('success'); } catch(e){}
+        ob.hidden = true;
+      } catch (e) {
+        const msg = `Saqlab bo‘lmadi: ${e.message}`;
+        tg && tg.showAlert ? tg.showAlert(msg) : alert(msg);
+        btn.disabled = false; btn.textContent = 'Davom etish';
+      }
+    };
+  }
+
+  $('#sponsor').onclick = () => openTg(D.sponsorUrl);
+
+  /* ---------- Top switch ---------- */
+  let view = store.get('tk_view') || 'ch';
+  const setView = v => {
+    view = v; store.set('tk_view', v);
+    document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    $('#viewCh').hidden = v !== 'ch'; $('#chipsRow').hidden = v !== 'ch';
+    $('#viewLg').hidden = v !== 'lg';
+    $('#viewSh').hidden = v !== 'sh';
+    window.scrollTo(0, 0);
+  };
+  $('#seg').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.v !== view) { haptic(); setView(b.dataset.v); } };
+
+  /* ---------- Challenges ---------- */
+  let chSel = 'all';
+  const challenges = [...D.challenges].sort((a, b) => b.no - a.no);
+  const renderChips = () => {
+    $('#chips').innerHTML = challenges.map(c =>
+      `<button class="chip ${chSel === c.no ? 'on' : ''}" data-no="${c.no}" title="${esc(c.title)}">#${c.no}</button>`).join('');
+    $('#allBtn').classList.toggle('on', chSel === 'all');
+  };
+  const workCard = (r, ch) => {
+    const d = byId[r.designer];
+    return `<button class="work" data-post="${esc(r.post || '')}">
+      <div class="thumb" style="${thumbBg(r, ch)}">${thumb(r, ch)}<div class="place p${r.place}">${r.place}</div></div>
+      <div class="work-meta">${avatar(r.designer)}<span class="name">${esc(d ? d.name : '—')}</span><span class="go">Ishni ko‘rish ›</span></div>
+    </button>`;
+  };
+  let renderFeed = () => {
+    const list = chSel === 'all' ? challenges : challenges.filter(c => c.no === chSel);
+    $('#viewCh').innerHTML = list.map(ch => `
+      <section class="ch">
+        <div class="ch-head"><span class="ch-no">#${ch.no}</span><h2 class="ch-title">${esc(ch.title)}</h2></div>
+        <div class="works ${chSel === 'all' ? 'compact' : ''}">${[...ch.results].sort((a, b) => a.place - b.place).map(r => workCard(r, ch)).join('')}</div>
+      </section>`).join('') || '<div class="empty">Hozircha chellenjlar yo‘q</div>';
+  };
+  $('#chips').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; haptic(); chSel = +b.dataset.no; renderChips(); renderFeed(); b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); };
+  $('#allBtn').onclick = () => { haptic(); chSel = 'all'; renderChips(); renderFeed(); };
+  document.addEventListener('click', e => { const w = e.target.closest('[data-post]'); if (w) openTg(w.dataset.post); });
+
+  /* ---------- League ---------- */
+  const L = D.league;
+  let renderLeague = () => { $('#viewLg').innerHTML = '<div class="empty">Liga mavsumi hali e’lon qilinmagan</div>'; };
+  if (L) {
+  const inSeason = c => c.date >= L.start && c.date <= L.end;
+  // Saralashga faqat mavsumning birinchi N ta chellenji kiradi
+  const qualifying = D.challenges.filter(inSeason).sort((a, b) => a.date.localeCompare(b.date)).slice(0, L.qualifyRounds);
+  const demoPhase = DEMO ? qs.get('phase') : null; // demo: ?phase=knockout | ?phase=break
+  if (demoPhase === 'break') { // demo: butun setkani o'ynalgan qilib to'ldiramiz
+    let prev = null;
+    L.rounds.forEach(r => r.matches.forEach((m, i) => {
+      if (prev) { m.a = prev[i * 2].winner; m.b = prev[i * 2 + 1].winner; }
+      m.winner = m.winner || m.a;
+    }) || (prev = r.matches));
+  }
+  const finalMatch = L.rounds[L.rounds.length - 1].matches[0];
+  // Final tugagach L.breakDays kun tanaffus, keyin yangi mavsum
+  const addDays = (iso, n) => { const d = new Date(iso); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  // Yangi mavsum tanaffusdan keyingi birinchi dushanbada boshlanadi (turlar ritmi dushanba)
+  const toMonday = iso => { const d = new Date(iso); return addDays(iso, (8 - d.getUTCDay()) % 7); };
+  const plannedNext = toMonday(addDays(finalMatch.decidedAt || finalMatch.deadline, L.breakDays));
+  const nextSeason = finalMatch.winner ? plannedNext : null;
+  const isoToday = localIso(today);
+  const status = (from, to) => isoToday > to ? 'done' : isoToday >= from ? 'live' : 'soon';
+
+  // UCL uslubidagi taqvim: mavsum boshida butun jadval ma'lum bo'ladi.
+  // Saralash turlari L.start dan har L.tourDays kunda; brief tur boshida, dedlayn submitDays-kuni, natijalar keyingi tur boshida.
+  const tours = Array.from({ length: L.qualifyRounds }, (_, i) => {
+    const start = addDays(L.start, i * L.tourDays);
+    return { n: i + 1, start, deadline: addDays(start, L.submitDays - 1), results: addDays(start, L.tourDays), ch: qualifying[i] };
+  });
+  const calendar = (() => {
+    const ev = tours.map(t => ({ kind: 'tour', from: t.start, to: t.deadline, t,
+      title: `${t.n}-tur · Chellenj${t.ch ? ` #${t.ch.no}` : ''}`,
+      sub: t.ch ? t.ch.title : status(t.start, t.deadline) === 'live' ? 'Brief guruhda — ishni dedlayngacha yuboring' : 'Mavzu tur boshlanganda e’lon qilinadi',
+      meta: `Dedlayn ${fmt(t.deadline)} · Natijalar ${fmt(t.results)}` }));
+    const last = tours[tours.length - 1];
+    ev.push({ kind: 'draw', from: last.results, to: addDays(last.results, L.drawDays - 1), title: 'Saralash yakuni — juftliklar e’loni', sub: `Top ${L.qualify} va 1/8 final juftliklari e’lon qilinadi · ${L.drawDays} kun` });
+    L.rounds.forEach(r => {
+      const legs = [...new Map(r.matches.map(m => [m.start + m.deadline, m])).values()];
+      legs.forEach((m, i) => ev.push({ kind: 'round', key: r.key, from: m.start, to: m.deadline,
+        title: legs.length > 1 ? `${r.name} · ${i + 1}-qism` : r.name,
+        sub: `${r.matches.filter(x => x.start === m.start).length} ta jang · Dedlayn ${fmt(m.deadline)}` }));
+    });
+    const fin = finalMatch.decidedAt || finalMatch.deadline;
+    ev.push({ kind: 'break', from: addDays(fin, 1), to: addDays(plannedNext, -1), title: 'Tanaffus', sub: 'Chellenjlar bo‘lmaydi' });
+    ev.push({ kind: 'new', from: plannedNext, to: plannedNext, title: 'Yangi mavsum', sub: 'Ochkolar 0 ga tushadi, 1-tur boshlanadi' });
+    return ev.map(e => ({ ...e, st: status(e.from, e.to) }));
+  })();
+  const phase = finalMatch.winner ? 'break'
+    : demoPhase === 'knockout' || qualifying.length >= L.qualifyRounds ? 'knockout' : 'qualifying';
+  const allMatches = L.rounds.flatMap(r => r.matches);
+  const standings = () => {
+    const m = {};
+    qualifying.forEach(c => c.results.forEach(r => {
+      const s = m[r.designer] ||= { id: r.designer, pts: 0, played: 0, wins: 0, podium: 0 };
+      s.pts += D.points[r.place] || 0; s.played++;
+      if (r.place === 1) s.wins++; if (r.place <= 3) s.podium++;
+    }));
+    D.designers.forEach(d => m[d.id] ||= { id: d.id, pts: 0, played: 0, wins: 0, podium: 0 });
+    return Object.values(m).sort((a, b) => b.pts - a.pts || b.wins - a.wins || b.podium - a.podium);
+  };
+  const matchState = mt => {
+    if (mt.winner) return ['done', 'Yakunlandi'];
+    const t = isoToday;
+    if (mt.deadline && t > mt.deadline && mt.a && mt.b) return ['live', 'Adminlar baholamoqda'];
+    if (mt.start <= t && t <= mt.deadline) return ['live', 'Davom etmoqda'];
+    return ['soon', 'Kutilmoqda'];
+  };
+  // Saralash paytida: 1/8 final juftliklari hozirgi jadvaldan (1–16, 8–9, 5–12, 4–13, 3–14, 6–11, 7–10, 2–15)
+  const SEED = [[1, 16], [8, 9], [5, 12], [4, 13], [3, 14], [6, 11], [7, 10], [2, 15]];
+  const rounds = () => {
+    if (phase !== 'qualifying') return L.rounds;
+    const top = standings();
+    return L.rounds.map(r => ({ ...r, matches: r.matches.map((m, i) => r.key === 'r16'
+      ? { start: m.start, deadline: m.deadline, a: top[SEED[i][0] - 1]?.id, b: top[SEED[i][1] - 1]?.id }
+      : { start: m.start, deadline: m.deadline }) }));
+  };
+  const projectedNote = () => phase === 'qualifying'
+    ? `<div class="note">Saralash davom etmoqda — juftliklar hozirgi jadval bo‘yicha <b>taxminiy</b>. ${L.qualifyRounds}-chellenjdan keyin aniq bo‘ladi.</div>` : '';
+
+  let lgTab = store.get('tk_lgtab') || 'table';
+  let roundSel = phase === 'qualifying' ? 'r16' : (L.rounds.find(r => r.matches.some(m => !m.winner))?.key || L.rounds[0].key);
+
+  const paneTable = () => {
+    const rows = standings();
+    return `<div class="card"><table class="table">
+      <thead><tr><th>#</th><th>Dizayner</th><th>Ch</th><th>1-o‘r</th><th>Ochko</th></tr></thead>
+      <tbody>${rows.map((s, i) => `<tr class="${i === L.qualify ? 'cut' : ''}">
+        <td><div class="rank ${i < L.qualify ? 'qual' : ''}">${i + 1}</div></td>
+        <td><div class="who">${avatar(s.id)}${esc(byId[s.id].name)}</div></td>
+        <td>${s.played}</td><td>${s.wins}</td><td>${String(s.pts).replace('.', ',')}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="legend"><i></i>${phase !== 'qualifying' ? `Saralash yakunlandi — top ${L.qualify} janglarda` : `Top ${L.qualify} — janglarga yo‘llanma`}</div>
+      <div class="card rules"><div class="rules-title">Ochko tizimi</div>
+        <div><b>3</b><span>1-o‘rin</span></div><div><b>2</b><span>2-o‘rin</span></div><div><b>1</b><span>3-o‘rin</span></div><div><b>0,5</b><span>4–5-o‘rin</span></div>
+        <div class="rules-foot">Ochko teng bo‘lsa: ko‘proq 1-o‘rin, keyin ko‘proq top-3 olgan yuqorida turadi.</div>
+      </div>`;
+  };
+
+  const paneMatches = () => {
+    const RS = rounds();
+    const r = RS.find(x => x.key === roundSel);
+    return `${projectedNote()}<div class="select" id="roundSel">${RS.map(x => `<button data-k="${x.key}" class="${x.key === roundSel ? 'on' : ''}">${x.name}</button>`).join('')}</div>
+    <div class="card">${r.matches.map(mt => {
+      const [st, label] = matchState(mt);
+      const row = id => `<div class="m-row ${mt.winner && mt.winner !== id ? 'lose' : ''}">${avatar(id)}<span>${id ? esc(byId[id].name) : 'Aniqlanmagan'}</span>${mt.winner === id ? '<span class="win">G‘OLIB</span>' : ''}</div>`;
+      return `<div class="match" ${mt.post ? `data-post="${esc(mt.post)}"` : ''}>
+        <div class="m-date"><span>Boshlanish</span><b>${fmt(mt.start)}</b><span>Dedlayn</span><b>${fmt(mt.deadline)}</b></div>
+        <div class="m-teams">${row(mt.a)}${row(mt.b)}</div>
+        <span class="m-state st-${st}">${label}</span></div>`;
+    }).join('')}</div>`;
+  };
+
+  const paneBracket = () => {
+    const R = Object.fromEntries(rounds().map(r => [r.key, r.matches]));
+    const side = (id, mt) => {
+      const d = byId[id];
+      return `<div class="b-side ${mt.winner && mt.winner !== id ? 'lose' : ''}">${avatar(id)}<span>${d ? esc(d.short) : 'TBD'}</span></div>`;
+    };
+    const card = (mt = {}, span, extra = '') => `<div class="b-cell" style="grid-column:span ${span}"><div class="b-card ${extra}">
+      <div class="b-pair">${side(mt.a, mt)}${side(mt.b, mt)}</div>${mt.deadline ? `<div class="b-date">${fmt(mt.deadline)}</div>` : ''}</div></div>`;
+    const row = (ms, span) => ms.map(m => card(m, span)).join('');
+    const links = (n, up) => Array.from({ length: n }, () => `<div class="b-link ${n === 1 ? 'w8' : ''} ${up ? 'up' : ''}"></div>`).join('');
+    return `${projectedNote()}<div class="bracket">
+      <div class="b-round">1/8 final</div>
+      ${row(R.r16.slice(0, 4), 2)}${links(2)}
+      ${row(R.qf.slice(0, 2), 4)}${links(1)}
+      ${row(R.sf.slice(0, 1), 8)}<div class="b-vert"></div>
+      <div class="trophy"><span class="cup">🏆</span>${card(R.f[0], 8, 'final').replace('grid-column:span 8', 'width:100%')}</div>
+      <div class="b-vert"></div>
+      ${row(R.sf.slice(1, 2), 8)}${links(1, true)}
+      ${row(R.qf.slice(2, 4), 4)}${links(2, true)}
+      ${row(R.r16.slice(4, 8), 2)}
+      <div class="b-round" style="margin-top:8px">1/8 final</div>
+    </div>`;
+  };
+
+  const paneDesigns = () => {
+    const items = D.challenges.filter(inSeason).sort((a, b) => b.date.localeCompare(a.date))
+      .flatMap(ch => [...ch.results].sort((a, b) => a.place - b.place).map(r => ({ r, ch })));
+    return `<div class="card">${items.map(({ r, ch }) => `
+      <button class="dz" data-post="${esc(r.post || '')}">
+        <div class="thumb" style="${thumbBg(r, ch)}">${thumb(r, ch)}<div class="place p${r.place}" style="transform:scale(.85);transform-origin:top left">${r.place}</div></div>
+        <div class="dz-info"><b>${esc(byId[r.designer].name)}</b><span class="sub">#${ch.no} · ${esc(ch.title)}</span>
+          <div class="foot"><span class="p">+${String(D.points[r.place] || 0).replace('.', ',')} ochko</span>· ${fmt(ch.date)}</div></div>
+      </button>`).join('')}</div>`;
+  };
+
+  const MONTHS_FULL = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'];
+  const ST = { done: ['done', 'O‘tdi'], live: ['live', 'Hozir'], soon: ['soon', 'Kutilmoqda'] };
+  const ICON = { tour: '🎨', draw: '🎲', round: '⚔️', break: '☕', new: '🚀' };
+  const paneCalendar = () => {
+    let month = -1;
+    return calendar.map(e => {
+      const m = new Date(e.from).getMonth();
+      const head = m !== month ? `${month === -1 ? '' : '</div>'}<div class="cal-month">${MONTHS_FULL[m]}</div><div class="card">` : '';
+      month = m;
+      const [cls, label] = ST[e.st];
+      const range = e.from === e.to ? `<b>${fmt(e.from)}</b>` : `<b>${fmt(e.from)}</b><span>${fmt(e.to)}</span>`;
+      const target = e.kind === 'tour' && e.t.ch ? `data-tour="${e.t.ch.no}"` : e.kind === 'round' ? `data-round="${e.key}"` : '';
+      return `${head}<div class="cal ${e.st === 'live' ? 'now' : ''} ${target ? 'tap' : ''}" ${target}>
+        <div class="m-date">${range}</div>
+        <div class="cal-body"><b><span class="ic">${ICON[e.kind]}</span>${esc(e.title)}</b><span>${esc(e.sub)}</span>${e.meta ? `<span class="meta">${e.meta}</span>` : ''}</div>
+        <span class="m-state st-${cls}">${label}</span></div>`;
+    }).join('') + '</div>';
+  };
+
+  const TABS = [['table', 'Jadval', paneTable], ['calendar', 'Taqvim', paneCalendar], ['matches', 'Janglar', paneMatches], ['bracket', 'Liga yo‘li', paneBracket], ['designs', 'Dizaynlar', paneDesigns]];
+  renderLeague = () => {
+    const qDone = phase !== 'qualifying' ? L.qualifyRounds : qualifying.length;
+    const kDone = phase !== 'qualifying' ? allMatches.filter(m => m.winner).length : 0;
+    const daysLeft = nextSeason ? Math.max(0, Math.ceil((new Date(nextSeason) - today) / 864e5)) : L.breakDays;
+    const champ = phase === 'break' && byId[finalMatch.winner];
+    const stage = (on, name, val, pct) => `<div class="stage ${on ? 'on' : ''}">
+      <div class="stage-top"><span>${name}</span><b>${val}</b></div>
+      <div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+    $('#viewLg').innerHTML = `
+      <div class="lg-hero">
+        <div class="lg-emblem">🏆</div>
+        <h1>${esc(L.title)}</h1>
+        <span class="season">${esc(L.season)}-yil mavsumi</span>
+        <div class="stages">
+          ${stage(phase === 'qualifying', '1. Saralash', `${qDone}/${L.qualifyRounds} chellenj`, qDone / L.qualifyRounds * 100)}
+          ${stage(phase === 'knockout', '2. Janglar', `${kDone}/${allMatches.length} jang`, kDone / allMatches.length * 100)}
+          ${stage(phase === 'break', '3. Tanaffus', phase === 'break' ? `${daysLeft} kun qoldi` : `${L.breakDays} kun`, phase === 'break' ? (L.breakDays - daysLeft) / L.breakDays * 100 : 0)}
+        </div>
+        ${champ ? `<div class="champ">${avatar(champ.id, 'lg')}<div><span>${esc(L.season)} chempioni</span><b>${esc(champ.name)}</b></div><div class="next"><span>Yangi mavsum</span><b>${fmt(nextSeason)}</b></div></div>`
+          : `<div class="ends"><span>${fmt(L.start)}</span><span>${fmt(L.end)}</span></div>`}
+      </div>
+      <nav class="tabs" id="lgTabs">${TABS.map(([k, n]) => `<button data-k="${k}" class="${k === lgTab ? 'on' : ''}">${n}</button>`).join('')}</nav>
+      <div class="pane">${TABS.find(t => t[0] === lgTab)[2]()}</div>`;
+  };
+  $('#viewLg').addEventListener('click', e => {
+    const t = e.target.closest('#lgTabs button');
+    if (t) { haptic(); lgTab = t.dataset.k; store.set('tk_lgtab', lgTab); renderLeague(); return; }
+    const tour = e.target.closest('[data-tour]');
+    if (tour) { haptic(); chSel = +tour.dataset.tour; renderChips(); renderFeed(); setView('ch'); return; }
+    const rd = e.target.closest('[data-round]');
+    if (rd) { haptic(); roundSel = rd.dataset.round; lgTab = 'matches'; renderLeague(); window.scrollTo(0, 0); return; }
+    const r = e.target.closest('#roundSel button');
+    if (r) { haptic(); roundSel = r.dataset.k; renderLeague(); }
+  });
+
+  // Janglar va tanaffus vaqtida chellenjlar to'xtaydi — lenta tepasida ogohlantirish
+  if (phase !== 'qualifying') {
+    const [title, text, btn, tab] = phase === 'knockout'
+      ? ['Chellenjlar vaqtincha to‘xtatilgan', `${esc(L.title)} janglari davom etmoqda. Final tugagach ${L.breakDays / 7} hafta tanaffus, keyin yangi mavsum.`, 'Janglar ›', 'matches']
+      : ['Mavsum yakunlandi — tanaffus', `Yangi mavsum va chellenjlar ${fmt(nextSeason)} dan boshlanadi. Ochkolar 0 dan hisoblanadi.`, 'Chempion ›', 'bracket'];
+    const _renderFeed = renderFeed;
+    renderFeed = () => {
+      _renderFeed();
+      $('#viewCh').insertAdjacentHTML('afterbegin', `<div class="pause">
+        <div><b>${title}</b><span>${text}</span></div><button id="toLeague">${btn}</button></div>`);
+    };
+    $('#viewCh').addEventListener('click', e => { if (e.target.closest('#toLeague')) { lgTab = tab; renderLeague(); setView('lg'); } });
+  }
+
+  // Saralash paytida: joriy / keyingi tur kartasi (UCL'dagi "keyingi o'yin kuni")
+  if (phase === 'qualifying') {
+    const cur = tours.find(t => status(t.start, t.deadline) === 'live') || tours.find(t => t.start > isoToday);
+    if (cur) {
+      const live = status(cur.start, cur.deadline) === 'live';
+      const days = Math.ceil((new Date(live ? cur.deadline : cur.start) - today) / 864e5) + (live ? 1 : 0);
+      const _rf = renderFeed;
+      renderFeed = () => {
+        _rf();
+        if (chSel !== 'all') return;
+        $('#viewCh').insertAdjacentHTML('afterbegin', `<div class="tour-now">
+          <div class="tn-top"><span class="m-state st-${live ? 'live' : 'soon'}">${live ? 'Hozir' : 'Keyingi'}</span><span>${cur.n}/${L.qualifyRounds}-tur · Saralash</span></div>
+          <b>${live ? 'Chellenj davom etmoqda' : `Chellenj ${fmt(cur.start)} da boshlanadi`}</b>
+          <div class="tn-dates"><div><span>Boshlanish</span><b>${fmt(cur.start)}</b></div><div><span>Dedlayn</span><b>${fmt(cur.deadline)}</b></div><div><span>Natijalar</span><b>${fmt(cur.results)}</b></div><div class="left"><span>${live ? 'Dedlaynga' : 'Boshlanishiga'}</span><b>${days} kun</b></div></div>
+          <button id="toCal">Mavsum taqvimi ›</button></div>`);
+      };
+      $('#viewCh').addEventListener('click', e => { if (e.target.closest('#toCal')) { lgTab = 'calendar'; renderLeague(); setView('lg'); } });
+    }
+  }
+  } // if (L)
+
+  /* ---------- Sahna orti ---------- */
+  const S = D.sahna;
+  const renderSahna = () => {
+    const posts = [...S.posts].sort((a, b) => b.no - a.no);
+    $('#viewSh').innerHTML = `
+      <div class="sh-hero"><img class="sh-logo" src="assets/sahna.svg" alt="Sahna orti">
+        <p>Dizaynerlar muqova ortidagi jarayonni ko‘rsatadi: brif, ilhom, ish jarayoni va asboblar.</p>
+        <button class="sh-apply" id="shSubmit">✍️ Sahna ortida chiqish uchun ariza</button></div>
+      <div class="sh-list">${posts.map(p => `
+        <button class="post" data-article="${esc(p.url)}">
+          <div class="post-cover"><img src="${esc(p.cover)}" alt="" loading="lazy"></div>
+          <div class="post-meta">${fmt(p.date)}, ${new Date(p.date).getFullYear()} • ${p.read} daqiqa o‘qish</div>
+          <h3>${String(p.no).padStart(2, '0')} – ${esc(p.designer)}</h3>
+          <p>${esc(p.desc)}</p>
+        </button>`).join('') || '<div class="empty">Hozircha maqola yo‘q</div>'}</div>
+      <button class="sh-all" id="shBlog">Barcha maqolalar Teletype’da ›</button>`;
+  };
+  $('#viewSh').addEventListener('click', e => {
+    const a = e.target.closest('[data-article]'); if (a) return openArticle(a.dataset.article);
+    if (e.target.closest('#shSubmit')) return openTg(S.submitUrl);
+    if (e.target.closest('#shBlog')) return openArticle(S.blog);
+  });
+
+  renderChips(); renderFeed(); renderLeague(); renderSahna(); setView(view);
+})();
+</script>
+</body>
+</html>

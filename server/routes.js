@@ -1,0 +1,309 @@
+// API yo'nalishlari: umumiy (/api), foydalanuvchi (/api/me, /api/register), admin (/api/admin/*)
+const express = require('express');
+const crypto = require('crypto');
+const db = require('./db');
+const tg = require('./telegram');
+const { buildState } = require('./state');
+const { fetchTeletype } = require('./teletype');
+const league = require('./league');
+const { httpError } = league;
+
+const adminIds = () => new Set((process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean));
+
+/* ---------- Validatsiya yordamchilari ---------- */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const str = (v, name, { max = 300, optional = false } = {}) => {
+  if (v == null || v === '') { if (optional) return null; throw httpError(400, `${name} kiritilmagan`); }
+  if (typeof v !== 'string' || v.length > max) throw httpError(400, `${name} noto‘g‘ri`);
+  return v.trim();
+};
+const int = (v, name, { min = 0, max = 1e6, optional = false } = {}) => {
+  if (v == null || v === '') { if (optional) return null; throw httpError(400, `${name} kiritilmagan`); }
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < min || n > max) throw httpError(400, `${name} noto‘g‘ri`);
+  return n;
+};
+const date = (v, name, opts = {}) => {
+  if ((v == null || v === '') && opts.optional) return null;
+  if (typeof v !== 'string' || !DATE_RE.test(v) || Number.isNaN(Date.parse(v))) throw httpError(400, `${name} sanasi noto‘g‘ri (YYYY-MM-DD)`);
+  return v;
+};
+const url = (v, name, opts = {}) => {
+  const s = str(v, name, { max: 500, ...opts });
+  if (s == null) return null;
+  if (!/^https:\/\//.test(s)) throw httpError(400, `${name} https:// bilan boshlanishi kerak`);
+  return s;
+};
+const pick = (body, keys) => keys.filter(k => Object.hasOwn(body, k));
+
+/* ---------- Auth ---------- */
+// Frontend har so'rovda Telegram initData'ni x-telegram-init-data sarlavhasida yuboradi
+function auth(req, _res, next) {
+  const user = tg.verifyInitData(req.get('x-telegram-init-data'), process.env.BOT_TOKEN);
+  if (user) req.tgUser = user;
+  // Faqat lokal ishlab chiqish: Telegram'siz brauzerda sinash uchun
+  else if (process.env.DEV_USER_ID && process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT) {
+    req.tgUser = { id: Number(process.env.DEV_USER_ID), first_name: 'Dev', username: 'dev' };
+  }
+  next();
+}
+const requireUser = (req, _res, next) => next(req.tgUser ? undefined : httpError(401, 'Telegram orqali oching'));
+const requireAdmin = (req, _res, next) =>
+  next(req.tgUser && adminIds().has(String(req.tgUser.id)) ? undefined : httpError(403, 'Faqat adminlar uchun'));
+
+const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res)).then(out => out !== undefined && res.json(out)).catch(next);
+
+const router = express.Router();
+router.use(auth);
+
+/* ---------- Umumiy ---------- */
+router.get('/state', wrap(async (_req, res) => {
+  res.set('cache-control', 'no-store');
+  return buildState();
+}));
+
+router.get('/me', requireUser, wrap(async req => {
+  const { rows: [u] } = await db.query(`SELECT roles, interests, tag, tag_error, registered_at FROM users WHERE tg_id = $1`, [req.tgUser.id]);
+  return {
+    id: req.tgUser.id,
+    registered: Boolean(u && u.registered_at),
+    roles: u ? u.roles : [],
+    interests: u ? u.interests : [],
+    isAdmin: adminIds().has(String(req.tgUser.id)),
+  };
+}));
+
+const ROLES = ['designer', 'youtuber'];
+const INTERESTS = ['feedback', 'inspiration', 'challenges'];
+
+router.post('/register', requireUser, wrap(async req => {
+  const roles = [...new Set(req.body.roles || [])];
+  const interests = [...new Set(req.body.interests || [])];
+  if (!roles.length || roles.some(r => !ROLES.includes(r))) throw httpError(400, 'Rolni tanlang');
+  if (!interests.length || interests.some(i => !INTERESTS.includes(i))) throw httpError(400, 'Qiziqishni tanlang');
+  const u = req.tgUser;
+
+  await db.query(
+    `INSERT INTO users (tg_id, username, first_name, last_name, roles, interests, registered_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+     ON CONFLICT (tg_id) DO UPDATE SET username = EXCLUDED.username, first_name = EXCLUDED.first_name,
+       last_name = EXCLUDED.last_name, roles = EXCLUDED.roles, interests = EXCLUDED.interests,
+       registered_at = COALESCE(users.registered_at, now()), updated_at = now()`,
+    [u.id, u.username || null, u.first_name || null, u.last_name || null, roles, interests]);
+
+  // "Muqova dizaynerman" — ligada qatnashish ro'yxatiga kiradi
+  if (roles.includes('designer')) {
+    const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `ID ${u.id}`;
+    const short = (u.first_name || u.username || 'DZN').replace(/[^\p{L}]/gu, '').slice(0, 3).toUpperCase() || 'DZN';
+    await db.query(`INSERT INTO designers (tg_id, name, short) VALUES ($1, $2, $3) ON CONFLICT (tg_id) DO NOTHING`, [u.id, name, short]);
+  }
+
+  const { tag, error } = await tg.applyTag(u.id, roles);
+  await db.query(`UPDATE users SET tag = $1, tag_error = $2 WHERE tg_id = $3`, [error ? null : tag, error, u.id]);
+  if (error) console.warn(`[tag] ${u.id}: ${error}`);
+  return { ok: true, tag: error ? null : tag };
+}));
+
+/* ---------- Admin ---------- */
+const admin = express.Router();
+admin.use(requireUser, requireAdmin);
+
+admin.get('/overview', wrap(async () => {
+  const q = db.query;
+  const [users, designers, challenges, results, seasons, matches, posts] = await Promise.all([
+    q(`SELECT tg_id, username, first_name, last_name, roles, interests, tag, tag_error, registered_at FROM users ORDER BY registered_at DESC NULLS LAST`),
+    q(`SELECT id, tg_id, name, short FROM designers ORDER BY name`),
+    q(`SELECT id, no, title, date, published FROM challenges ORDER BY no DESC`),
+    q(`SELECT challenge_id, place, designer_id, post_url, image_id FROM results ORDER BY challenge_id, place`),
+    q(`SELECT * FROM seasons ORDER BY start DESC`),
+    q(`SELECT * FROM matches ORDER BY season_id, round, slot`),
+    q(`SELECT * FROM sahna_posts ORDER BY no DESC`),
+  ]);
+  return {
+    users: users.rows, designers: designers.rows,
+    challenges: challenges.rows.map(c => ({ ...c, results: results.rows.filter(r => r.challenge_id === c.id) })),
+    seasons: seasons.rows, matches: matches.rows, sahna: posts.rows,
+  };
+}));
+
+// Dizaynerlar
+admin.post('/designers', wrap(async req => {
+  const name = str(req.body.name, 'Ism', { max: 80 });
+  const short = (str(req.body.short, 'Qisqa nom', { max: 4, optional: true }) || name.replace(/[^\p{L}]/gu, '').slice(0, 3)).toUpperCase();
+  const tgId = int(req.body.tg_id, 'Telegram ID', { max: 1e13, optional: true });
+  const { rows: [d] } = await db.query(`INSERT INTO designers (name, short, tg_id) VALUES ($1, $2, $3) RETURNING *`, [name, short, tgId]);
+  return d;
+}));
+
+admin.patch('/designers/:id', wrap(async req => {
+  const id = int(req.params.id, 'ID');
+  const sets = [], vals = [];
+  for (const k of pick(req.body, ['name', 'short', 'tg_id'])) {
+    const v = k === 'name' ? str(req.body.name, 'Ism', { max: 80 })
+      : k === 'short' ? str(req.body.short, 'Qisqa nom', { max: 4 }).toUpperCase()
+      : int(req.body.tg_id, 'Telegram ID', { max: 1e13, optional: true });
+    vals.push(v); sets.push(`${k} = $${vals.length}`);
+  }
+  if (!sets.length) throw httpError(400, 'O‘zgartirish yo‘q');
+  vals.push(id);
+  const { rows: [d] } = await db.query(`UPDATE designers SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals);
+  if (!d) throw httpError(404, 'Dizayner topilmadi');
+  return d;
+}));
+
+// Muqova rasmlari: frontend JPEG'ga siqib yuboradi
+admin.post('/images', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }), wrap(async req => {
+  if (!Buffer.isBuffer(req.body) || !req.body.length) throw httpError(400, 'Rasm yuborilmadi (image/jpeg, png yoki webp)');
+  const id = crypto.randomUUID();
+  await db.query(`INSERT INTO images (id, mime, data) VALUES ($1, $2, $3)`, [id, req.get('content-type'), req.body]);
+  return { id, url: `/img/${id}` };
+}));
+
+// Chellenjlar
+admin.post('/challenges', wrap(async req => {
+  const { rows: [c] } = await db.query(
+    `INSERT INTO challenges (no, title, date) VALUES ($1, $2, $3) RETURNING *`,
+    [int(req.body.no, 'Raqam', { min: 1 }), str(req.body.title, 'Nomi', { max: 120 }), date(req.body.date, 'Natija')]);
+  return c;
+}));
+
+admin.patch('/challenges/:id', wrap(async req => {
+  const id = int(req.params.id, 'ID');
+  const sets = [], vals = [];
+  const conv = {
+    no: v => int(v, 'Raqam', { min: 1 }), title: v => str(v, 'Nomi', { max: 120 }),
+    date: v => date(v, 'Natija'), published: v => Boolean(v),
+  };
+  for (const k of pick(req.body, Object.keys(conv))) { vals.push(conv[k](req.body[k])); sets.push(`${k} = $${vals.length}`); }
+  if (!sets.length) throw httpError(400, 'O‘zgartirish yo‘q');
+  vals.push(id);
+  const c = await db.tx(async t => {
+    const { rows: [row] } = await t.query(`UPDATE challenges SET ${sets.join(', ')} WHERE id = $${vals.length} RETURNING *`, vals);
+    if (!row) throw httpError(404, 'Chellenj topilmadi');
+    if (row.published) await seedActive(t);
+    return row;
+  });
+  return c;
+}));
+
+admin.delete('/challenges/:id', wrap(async req => {
+  const { rowCount } = await db.query(`DELETE FROM challenges WHERE id = $1`, [int(req.params.id, 'ID')]);
+  if (!rowCount) throw httpError(404, 'Chellenj topilmadi');
+  return { ok: true };
+}));
+
+// Natijalar: 1–5-o'rinlarni to'liq almashtiradi
+admin.put('/challenges/:id/results', wrap(async req => {
+  const id = int(req.params.id, 'ID');
+  const list = Array.isArray(req.body.results) ? req.body.results : null;
+  if (!list || list.length > 5) throw httpError(400, 'results: 5 tagacha o‘rin');
+  const rows = list.map((r, i) => ({
+    place: int(r.place, `${i + 1}-qator o‘rni`, { min: 1, max: 5 }),
+    designer_id: int(r.designer_id, `${i + 1}-qator dizayneri`, { min: 1 }),
+    post_url: url(r.post_url, `${i + 1}-qator havolasi`, { optional: true }),
+    image_id: r.image_id ? str(r.image_id, 'Rasm', { max: 36 }) : null,
+  }));
+  if (new Set(rows.map(r => r.place)).size !== rows.length) throw httpError(400, 'O‘rinlar takrorlangan');
+  if (new Set(rows.map(r => r.designer_id)).size !== rows.length) throw httpError(400, 'Bitta dizayner ikki o‘rinda');
+  return db.tx(async t => {
+    const { rows: [c] } = await t.query(`SELECT published FROM challenges WHERE id = $1`, [id]);
+    if (!c) throw httpError(404, 'Chellenj topilmadi');
+    await t.query(`DELETE FROM results WHERE challenge_id = $1`, [id]);
+    for (const r of rows) {
+      await t.query(`INSERT INTO results (challenge_id, place, designer_id, post_url, image_id) VALUES ($1, $2, $3, $4, $5)`,
+        [id, r.place, r.designer_id, r.post_url, r.image_id]);
+    }
+    const seed = c.published ? await seedActive(t) : null;
+    return { ok: true, seed };
+  });
+}));
+
+// Faol mavsumda saralash tugagan bo'lsa 1/8 finalni avtomatik to'ldiradi
+async function seedActive(t) {
+  const { rows: [s] } = await t.query(`SELECT id FROM seasons WHERE active LIMIT 1`);
+  return s ? league.seedIfReady(t.query, s.id) : null;
+}
+
+// Mavsumlar
+admin.post('/seasons', wrap(async req => {
+  const b = req.body;
+  const season = {
+    label: str(b.label, 'Mavsum nomi', { max: 40 }),
+    start: date(b.start, 'Boshlanish'),
+    qualify_rounds: int(b.qualify_rounds ?? 12, 'Turlar soni', { min: 1, max: 52 }),
+    tour_days: int(b.tour_days ?? 7, 'Tur uzunligi', { min: 1, max: 31 }),
+    submit_days: int(b.submit_days ?? 7, 'Topshirish kunlari', { min: 1, max: 31 }),
+    break_days: int(b.break_days ?? 14, 'Tanaffus', { min: 0, max: 90 }),
+    draw_days: int(b.draw_days ?? 2, 'E’lon kunlari', { min: 0, max: 14 }),
+  };
+  if (new Date(`${season.start}T00:00:00Z`).getUTCDay() !== 1) throw httpError(400, 'Mavsum dushanba kuni boshlanishi kerak');
+  return db.tx(async t => {
+    await t.query(`UPDATE seasons SET active = false WHERE active`);
+    const { rows: [s] } = await t.query(
+      `INSERT INTO seasons (label, start, qualify_rounds, tour_days, submit_days, break_days, draw_days)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [season.label, season.start, season.qualify_rounds, season.tour_days, season.submit_days, season.break_days, season.draw_days]);
+    for (const m of league.matchSchedule(s)) {
+      await t.query(`INSERT INTO matches (season_id, round, slot, start, deadline) VALUES ($1, $2, $3, $4, $5)`,
+        [s.id, m.round, m.slot, m.start, m.deadline]);
+    }
+    return s;
+  });
+}));
+
+admin.post('/seasons/:id/seed', wrap(async req => {
+  const id = int(req.params.id, 'ID');
+  return db.tx(t => league.seedIfReady(t.query, id, { force: true }));
+}));
+
+// Jang: juftlik, sanalar, havola, g'olib
+admin.patch('/matches/:id', wrap(async req => {
+  const id = int(req.params.id, 'ID');
+  const b = req.body;
+  return db.tx(async t => {
+    const { rows: [m] } = await t.query(`SELECT * FROM matches WHERE id = $1`, [id]);
+    if (!m) throw httpError(404, 'Jang topilmadi');
+    const sets = [], vals = [];
+    const put = (col, v) => { vals.push(v); sets.push(`${col} = $${vals.length}`); };
+    if (Object.hasOwn(b, 'a') || Object.hasOwn(b, 'b')) {
+      if (m.winner) throw httpError(409, 'G‘olib belgilangan — avval uni bekor qiling');
+      if (Object.hasOwn(b, 'a')) put('a', int(b.a, 'A dizayner', { min: 1, optional: true }));
+      if (Object.hasOwn(b, 'b')) put('b', int(b.b, 'B dizayner', { min: 1, optional: true }));
+    }
+    if (Object.hasOwn(b, 'start')) put('start', date(b.start, 'Boshlanish'));
+    if (Object.hasOwn(b, 'deadline')) put('deadline', date(b.deadline, 'Dedlayn'));
+    if (Object.hasOwn(b, 'post_url')) put('post_url', url(b.post_url, 'Havola', { optional: true }));
+    if (sets.length) {
+      vals.push(id);
+      await t.query(`UPDATE matches SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    }
+    if (Object.hasOwn(b, 'winner')) {
+      await league.setWinner(t.query, id, int(b.winner, 'G‘olib', { min: 1, optional: true }), date(b.decided_at, 'Qaror', { optional: true }));
+    }
+    const { rows: [out] } = await t.query(`SELECT * FROM matches WHERE id = $1`, [id]);
+    return out;
+  });
+}));
+
+// Sahna orti: Teletype havolasidan kartochka
+admin.post('/sahna', wrap(async req => {
+  const info = await fetchTeletype(str(req.body.url, 'Havola', { max: 500 }));
+  const p = { ...info, ...Object.fromEntries(pick(req.body, ['no', 'designer', 'desc', 'date', 'read', 'cover']).map(k => [k, req.body[k]])) };
+  const { rows: [row] } = await db.query(
+    `INSERT INTO sahna_posts (no, designer, descr, date, read_min, url, cover) VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (url) DO UPDATE SET no = EXCLUDED.no, designer = EXCLUDED.designer, descr = EXCLUDED.descr,
+       date = EXCLUDED.date, read_min = EXCLUDED.read_min, cover = EXCLUDED.cover RETURNING *`,
+    [int(p.no, 'Raqam', { min: 1 }), str(p.designer, 'Dizayner', { max: 80 }), str(p.desc, 'Tavsif', { max: 300, optional: true }) || '',
+      date(p.date, 'Sana'), int(p.read, 'O‘qish vaqti', { min: 1, max: 60 }), info.url, url(p.cover, 'Muqova', { optional: true })]);
+  return row;
+}));
+
+admin.delete('/sahna/:id', wrap(async req => {
+  const { rowCount } = await db.query(`DELETE FROM sahna_posts WHERE id = $1`, [int(req.params.id, 'ID')]);
+  if (!rowCount) throw httpError(404, 'Maqola topilmadi');
+  return { ok: true };
+}));
+
+router.use('/admin', admin);
+
+module.exports = { router };

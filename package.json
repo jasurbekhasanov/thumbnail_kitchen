@@ -1,0 +1,25 @@
+{
+  "name": "thumbnail-kitchen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Thumbnail Kitchen Telegram Mini App — chellenjlar, Chempionlar Ligasi, Sahna orti",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "seed:demo": "node scripts/seed.js --demo",
+    "seed:sahna": "node scripts/seed.js --sahna",
+    "test": "node --test scripts/smoke.test.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
