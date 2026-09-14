@@ -39,7 +39,7 @@ npm test
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`
    - `BOT_TOKEN`, `APP_URL` (3-qadamdagi domen), `ADMIN_IDS`, `GROUP_CHAT_ID`, `WEBHOOK_SECRET`, `NODE_ENV=production`
 5. Deploy tugagach server o‘zi webhook va bot menyusidagi “Ilova” tugmasini sozlaydi (loglarda `[bot] webhook va menyu tugmasi sozlandi`).
-6. **Sahna orti maqolalari:** Railway servis → *Shell* (yoki `railway run npm run seed:sahna`).
+6. **Sahna orti maqolalari** birinchi ishga tushishda `public/data.js` dan avtomatik yoziladi (jadval bo‘sh bo‘lsa).
 
 ## Telegram sozlamalari
 
