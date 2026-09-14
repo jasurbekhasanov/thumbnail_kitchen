@@ -149,3 +149,34 @@ test('Sahna: faqat teletype.in', async () => {
   const r = await api('POST', '/api/admin/sahna', { user: ADMIN, body: { url: 'https://evil.example/x' } });
   assert.equal(r.status, 400);
 });
+
+test('qo‘lda qo‘shilgan dizayner ro‘yxatdan o‘tganda bog‘lanadi', async () => {
+  const made = await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'Komron', username: '@Komron_design' } });
+  assert.equal(made.status, 200);
+  assert.equal(made.body.username, 'Komron_design');
+  assert.equal((await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'X', username: 'komron_design' } })).status, 409, 'username takrorlanmaydi');
+  assert.equal((await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'Y', username: 'bad name!' } })).status, 400);
+
+  const KOMRON = { id: 3000, first_name: 'Komron', last_name: 'Aliyev', username: 'komron_DESIGN' };
+  await api('POST', '/api/register', { user: KOMRON, body: { roles: ['designer'], interests: ['challenges'] } });
+  const { rows } = await db.query(`SELECT id, tg_id, name FROM designers WHERE lower(username) = 'komron_design'`);
+  assert.equal(rows.length, 1, 'dublikat yo‘q');
+  assert.equal(rows[0].id, made.body.id, 'o‘sha yozuvga bog‘landi');
+  assert.equal(rows[0].tg_id, KOMRON.id);
+  assert.equal(rows[0].name, 'Komron', 'admin kiritgan ism saqlanadi');
+});
+
+test('pin xabarlari: tugmalar bo‘limga olib boradi', () => {
+  const pins = require('../server/pins');
+  process.env.MINIAPP_LINK = 'https://t.me/thumbnailkitchen_bot/app';
+  const ch = pins.build('chellenj', { botUsername: 'thumbnailkitchen_bot' });
+  assert.match(ch.text, /Haftalik chellenj/);
+  assert.equal(ch.reply_markup.inline_keyboard[0][0].url, 'https://t.me/thumbnailkitchen_bot/app?startapp=ch');
+  const g = pins.build('general', { botUsername: 'thumbnailkitchen_bot' });
+  assert.equal(g.reply_markup.inline_keyboard[0][0].url, 'https://t.me/thumbnailkitchen_bot/app');
+  delete process.env.MINIAPP_LINK;
+  assert.equal(pins.build('sahna', { botUsername: 'thumbnailkitchen_bot' }).reply_markup.inline_keyboard[0][0].url, 'https://t.me/thumbnailkitchen_bot?start=sh');
+  assert.equal(pins.build('nope', {}), null);
+  // Har bir tugma matni Telegram cheklovidan oshmasin, havola https bo'lsin
+  for (const k of pins.KINDS) for (const row of pins.build(k, { botUsername: 'b' }).reply_markup.inline_keyboard) for (const b of row) assert.match(b.url, /^https:\/\//);
+});

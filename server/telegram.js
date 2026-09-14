@@ -1,5 +1,6 @@
 // Telegram: Mini App imzosini tekshirish, Bot API chaqiruvlari, webhook.
 const crypto = require('crypto');
+const pins = require('./pins');
 
 const cfg = () => ({
   token: process.env.BOT_TOKEN,
@@ -75,11 +76,54 @@ async function applyTag(userId, roles) {
   }
 }
 
+let botUsername = null;
+async function getBotUsername() {
+  if (!botUsername) botUsername = (await call('getMe', {})).username;
+  return botUsername;
+}
+
+const isAdmin = id => (process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).includes(String(id));
+
+// /pin_chellenj | /pin_sahna | /pin_general — admin topic ichida yozadi
+async function handlePin(msg, kind) {
+  const db = require('./db');
+  const chatId = msg.chat.id;
+  const threadId = msg.is_topic_message ? msg.message_thread_id : 0;
+  // Buyruqning o'zi guruhda qolmasin
+  call('deleteMessage', { chat_id: chatId, message_id: msg.message_id }).catch(() => {});
+  if (!isAdmin(msg.from && msg.from.id)) return;
+
+  const payload = pins.build(kind, { botUsername: await getBotUsername() });
+  try {
+    const sent = await call('sendMessage', {
+      chat_id: chatId,
+      ...(threadId ? { message_thread_id: threadId } : {}),
+      parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      ...payload,
+    });
+    await call('pinChatMessage', { chat_id: chatId, message_id: sent.message_id, disable_notification: true });
+    const { rows: [old] } = await db.query(`SELECT message_id FROM bot_pins WHERE chat_id = $1 AND thread_id = $2 AND kind = $3`, [chatId, threadId, kind]);
+    if (old) call('deleteMessage', { chat_id: chatId, message_id: old.message_id }).catch(() => {});
+    await db.query(
+      `INSERT INTO bot_pins (chat_id, thread_id, kind, message_id) VALUES ($1, $2, $3, $4)
+       ON CONFLICT (chat_id, thread_id, kind) DO UPDATE SET message_id = EXCLUDED.message_id, updated_at = now()`,
+      [chatId, threadId, kind, sent.message_id]);
+  } catch (e) {
+    console.error(`[pin] ${kind}:`, e.message);
+    // Sababni adminning shaxsiy chatiga yuboramiz (guruhni xato bilan to'ldirmaslik uchun)
+    call('sendMessage', { chat_id: msg.from.id, text: `Pin qilib bo‘lmadi (${kind}): ${e.message}\n\nBotda “Pin messages” va “Delete messages” huquqlari bormi?` }).catch(() => {});
+  }
+}
+
 // Webhook'ga kelgan yangilanishlar
 async function handleUpdate(update) {
   const { appUrl, groupId, miniAppLink } = cfg();
   const msg = update.message;
   if (!msg) return;
+
+  const pinCmd = (msg.text || '').match(/^\/pin_(chellenj|sahna|general)(?:@\w+)?\s*$/);
+  if (pinCmd && msg.chat.type !== 'private') return handlePin(msg, pinCmd[1]);
 
   // /chatid — GROUP_CHAT_ID ni bilish uchun (guruhda yozing)
   if (/^\/chatid\b/.test(msg.text || '')) {
@@ -89,10 +133,13 @@ async function handleUpdate(update) {
 
   if (msg.chat.type === 'private' && /^\/start\b/.test(msg.text || '')) {
     if (!appUrl) return;
+    // /start ch|lg|sh — guruhdagi pin tugmasidan kelgan bo'lsa, ilova o'sha bo'limda ochiladi
+    const section = ((msg.text || '').split(/\s+/)[1] || '').trim();
+    const url = ['ch', 'lg', 'sh'].includes(section) ? `${appUrl}/?v=${section}` : appUrl;
     await call('sendMessage', {
       chat_id: msg.chat.id,
       text: 'Thumbnail Kitchen — chellenj g‘oliblari, Chempionlar Ligasi va Sahna orti.',
-      reply_markup: { inline_keyboard: [[{ text: 'Ilovani ochish', web_app: { url: appUrl } }]] },
+      reply_markup: { inline_keyboard: [[{ text: 'Ilovani ochish', web_app: { url } }]] },
     });
     return;
   }

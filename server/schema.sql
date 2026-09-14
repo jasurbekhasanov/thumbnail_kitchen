@@ -96,3 +96,17 @@ CREATE TABLE IF NOT EXISTS sahna_posts (
   cover      TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Qo'lda qo'shilgan dizayner keyin ro'yxatdan o'tsa, username orqali o'sha yozuvga bog'lanadi (dublikat bo'lmasin)
+ALTER TABLE designers ADD COLUMN IF NOT EXISTS username TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS designers_username_uq ON designers (lower(username)) WHERE username IS NOT NULL;
+
+-- Bot guruhda pin qilgan xabarlar: qayta joylanganda eskisi o'chiriladi
+CREATE TABLE IF NOT EXISTS bot_pins (
+  chat_id    BIGINT NOT NULL,
+  thread_id  BIGINT NOT NULL DEFAULT 0,        -- forum topic; 0 = General / oddiy guruh
+  kind       TEXT NOT NULL,                    -- chellenj, sahna, general
+  message_id BIGINT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (chat_id, thread_id, kind)
+);

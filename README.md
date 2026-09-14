@@ -49,6 +49,21 @@ npm test
 - `GROUP_CHAT_ID`: `BOT_TOKEN` qo‘yilgach, guruhda `/chatid` deb yozing — bot guruh ID'sini qaytaradi.
 - Guruhdagi “Ro‘yxatdan o‘tish” tugmasi uchun BotFather → `/newapp` bilan Mini App yarating va havolani `MINIAPP_LINK` ga yozing.
 
+## Guruhdagi pin xabarlari
+
+Admin (`ADMIN_IDS`) kerakli topic ichida buyruq yozadi — bot tugmali xabarni o‘sha topicga joylaydi va pin qiladi:
+
+| Buyruq | Xabar | Tugmalar |
+|---|---|---|
+| `/pin_chellenj` | Haftalik chellenj | G‘oliblar, Liga jadvali |
+| `/pin_sahna` | Sahna orti | Maqolalar, Ariza |
+| `/pin_general` | Xush kelibsiz | Ilova, Chellenj, Liga, Sahna orti, Homiy |
+
+- Buyruq xabari o‘chiriladi. Qayta yozilsa, eski pin o‘chib yangisi qo‘yiladi — matnni o‘zgartirgach shunchaki qayta yuboring.
+- Matnlar `server/pins.js` da.
+- Botga **Pin messages** va **Delete messages** huquqlari kerak. Xato bo‘lsa, sababi adminning shaxsiy chatiga keladi.
+- Tugmalar ilovani kerakli bo‘limda ochishi uchun BotFather → `/newapp` bilan Mini App yarating va havolani `MINIAPP_LINK` ga yozing. Busiz tugmalar bot chatiga olib boradi (u yerdan “Ilovani ochish”).
+
 ## Admin API
 
 Hammasi `x-telegram-init-data` sarlavhasi bilan, faqat `ADMIN_IDS` dagilar uchun.

@@ -386,7 +386,9 @@
   }
 
   /* ---------- Top switch ---------- */
-  let view = store.get('tk_view') || 'ch';
+  // Guruhdagi pin tugmasi: t.me/<bot>/<app>?startapp=lg yoki /start lg → ?v=lg — ilova o'sha bo'limda ochiladi
+  const startView = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || qs.get('v');
+  let view = ['ch', 'lg', 'sh'].includes(startView) ? startView : store.get('tk_view') || 'ch';
   const setView = v => {
     view = v; store.set('tk_view', v);
     document.querySelectorAll('#seg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));

@@ -34,6 +34,14 @@ const url = (v, name, opts = {}) => {
   if (!/^https:\/\//.test(s)) throw httpError(400, `${name} https:// bilan boshlanishi kerak`);
   return s;
 };
+// Telegram username: @ siz, 5–32 belgi
+const username = v => {
+  const s = str(v, 'Username', { max: 40, optional: true });
+  if (s == null) return null;
+  const u = s.replace(/^@/, '').replace(/^https:\/\/t\.me\//, '');
+  if (!/^[A-Za-z0-9_]{4,32}$/.test(u)) throw httpError(400, 'Username noto‘g‘ri (@siz, lotin harf, raqam, _)');
+  return u;
+};
 const pick = (body, keys) => keys.filter(k => Object.hasOwn(body, k));
 
 /* ---------- Auth ---------- */
@@ -95,7 +103,14 @@ router.post('/register', requireUser, wrap(async req => {
   if (roles.includes('designer')) {
     const name = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || `ID ${u.id}`;
     const short = (u.first_name || u.username || 'DZN').replace(/[^\p{L}]/gu, '').slice(0, 3).toUpperCase() || 'DZN';
-    await db.query(`INSERT INTO designers (tg_id, name, short) VALUES ($1, $2, $3) ON CONFLICT (tg_id) DO NOTHING`, [u.id, name, short]);
+    // Admin oldin qo'lda qo'shgan bo'lsa (o'tgan chellenjlar uchun), yangi yozuv ochmay o'shanga bog'laymiz
+    const linked = u.username ? await db.query(
+      `UPDATE designers SET tg_id = $1 WHERE tg_id IS NULL AND lower(username) = lower($2)
+         AND NOT EXISTS (SELECT 1 FROM designers WHERE tg_id = $1) RETURNING id`, [u.id, u.username]) : { rows: [] };
+    if (!linked.rows.length) {
+      await db.query(`INSERT INTO designers (tg_id, name, short, username) VALUES ($1, $2, $3, $4)
+        ON CONFLICT DO NOTHING`, [u.id, name, short, u.username || null]);
+    }
   }
 
   const { tag, error } = await tg.applyTag(u.id, roles);
@@ -112,7 +127,7 @@ admin.get('/overview', wrap(async () => {
   const q = db.query;
   const [users, designers, challenges, results, seasons, matches, posts] = await Promise.all([
     q(`SELECT tg_id, username, first_name, last_name, roles, interests, tag, tag_error, registered_at FROM users ORDER BY registered_at DESC NULLS LAST`),
-    q(`SELECT id, tg_id, name, short FROM designers ORDER BY name`),
+    q(`SELECT id, tg_id, name, short, username FROM designers ORDER BY name`),
     q(`SELECT id, no, title, date, published FROM challenges ORDER BY no DESC`),
     q(`SELECT challenge_id, place, designer_id, post_url, image_id FROM results ORDER BY challenge_id, place`),
     q(`SELECT * FROM seasons ORDER BY start DESC`),
@@ -131,16 +146,18 @@ admin.post('/designers', wrap(async req => {
   const name = str(req.body.name, 'Ism', { max: 80 });
   const short = (str(req.body.short, 'Qisqa nom', { max: 4, optional: true }) || name.replace(/[^\p{L}]/gu, '').slice(0, 3)).toUpperCase();
   const tgId = int(req.body.tg_id, 'Telegram ID', { max: 1e13, optional: true });
-  const { rows: [d] } = await db.query(`INSERT INTO designers (name, short, tg_id) VALUES ($1, $2, $3) RETURNING *`, [name, short, tgId]);
+  const { rows: [d] } = await db.query(`INSERT INTO designers (name, short, tg_id, username) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [name, short, tgId, username(req.body.username)]);
   return d;
 }));
 
 admin.patch('/designers/:id', wrap(async req => {
   const id = int(req.params.id, 'ID');
   const sets = [], vals = [];
-  for (const k of pick(req.body, ['name', 'short', 'tg_id'])) {
+  for (const k of pick(req.body, ['name', 'short', 'tg_id', 'username'])) {
     const v = k === 'name' ? str(req.body.name, 'Ism', { max: 80 })
       : k === 'short' ? str(req.body.short, 'Qisqa nom', { max: 4 }).toUpperCase()
+      : k === 'username' ? username(req.body.username)
       : int(req.body.tg_id, 'Telegram ID', { max: 1e13, optional: true });
     vals.push(v); sets.push(`${k} = $${vals.length}`);
   }

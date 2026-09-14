@@ -152,6 +152,7 @@
             <label class="fld"><span>Ism</span><input id="nd-name" placeholder="Ism Familiya" maxlength="80"></label>
             <label class="fld narrow"><span>Qisqa</span><input id="nd-short" placeholder="ISM" maxlength="4"></label>
           </div>
+          <div class="a-row"><label class="fld"><span>Telegram username (tavsiya)</span><input id="nd-user" placeholder="@username"></label></div>
           <div class="btns"><button class="btn" data-act="ds-create">Dizayner qo‘shish</button></div>
         </div>
       </div>
@@ -289,6 +290,11 @@
   /* ---------- A'zolar ---------- */
   function viewUsers() {
     const errors = A.users.filter(u => u.tag_error).length;
+    const count = (field, key) => A.users.filter(u => u[field].includes(key)).length;
+    const bar = (label, n) => {
+      const pct = A.users.length ? Math.round(n / A.users.length * 100) : 0;
+      return `<div class="i-bar"><div class="i-top"><span>${label}</span><b>${n} · ${pct}%</b></div><div class="track"><div class="fill" style="width:${pct}%"></div></div></div>`;
+    };
     return `
       <div class="a-sec">
         <div class="stat">
@@ -296,6 +302,17 @@
           <div><b>${A.designers.length}</b><span>Dizayner</span></div>
           <div><b>${errors}</b><span>Tag xatosi</span></div>
         </div>
+      </div>
+      <div class="a-sec"><h3>Rollar va qiziqishlar</h3>
+        <div class="a-card">
+          ${bar('🎨 Muqova dizayner', count('roles', 'designer'))}
+          ${bar('▶️ YouTuber', count('roles', 'youtuber'))}
+          <div style="height:6px"></div>
+          ${bar('💬 Dizayn fidbeklari', count('interests', 'feedback'))}
+          ${bar('🖼️ Thumbnail ilhomlari', count('interests', 'inspiration'))}
+          ${bar('🏆 Haftalik chellenjlar', count('interests', 'challenges'))}
+        </div>
+        <p class="a-hint">Bir kishi bir nechta variantni tanlashi mumkin, shuning uchun foizlar yig‘indisi 100 dan oshadi.</p>
       </div>
       <div class="a-sec"><h3>Ro‘yxatdan o‘tganlar</h3>
         <div class="a-list">${A.users.map(u => {
@@ -316,9 +333,10 @@
               <label class="fld"><span>${d.tg_id ? 'Ro‘yxatdan o‘tgan' : 'Qo‘lda qo‘shilgan'}</span><input id="d-name-${d.id}" value="${esc(d.name)}" maxlength="80"></label>
               <label class="fld narrow"><span>Qisqa</span><input id="d-short-${d.id}" value="${esc(d.short)}" maxlength="4"></label>
             </div>
+            <div class="a-row"><label class="fld"><span>Telegram username</span><input id="d-user-${d.id}" value="${esc(d.username ? '@' + d.username : '')}" placeholder="@username" ${d.tg_id ? 'disabled' : ''}></label></div>
             <div class="btns"><button class="btn sm" data-act="ds-save" data-id="${d.id}">Saqlash</button></div>
           </div>`).join('') || '<div class="a-empty">Dizayner yo‘q</div>'}
-        <p class="a-hint">“Qisqa” — Liga yo‘li setkasida ko‘rinadigan 3 harf.</p>
+        <p class="a-hint">“Qisqa” — Liga yo‘li setkasida ko‘rinadigan 3 harf. Qo‘lda qo‘shilgan dizaynerga username yozsangiz, u keyin ro‘yxatdan o‘tganda shu yozuvga bog‘lanadi — ochkolari saqlanadi.</p>
       </div>`;
   }
 
@@ -359,11 +377,16 @@
     },
     'img-clear': btn => setPreview(btn.dataset.p, null),
     'ds-create': btn => act(btn, async () => {
-      const d = await api('/api/admin/designers', { method: 'POST', body: { name: val('#nd-name'), short: val('#nd-short') || undefined } });
-      $('#nd-name').value = ''; $('#nd-short').value = '';
+      const d = await api('/api/admin/designers', { method: 'POST', body: { name: val('#nd-name'), short: val('#nd-short') || undefined, username: val('#nd-user') || undefined } });
+      $('#nd-name').value = ''; $('#nd-short').value = ''; $('#nd-user').value = '';
       return d;
     }, d => `${d.name} qo‘shildi — ro‘yxatdan tanlashingiz mumkin`),
-    'ds-save': btn => act(btn, () => api(`/api/admin/designers/${btn.dataset.id}`, { method: 'PATCH', body: { name: val(`#d-name-${btn.dataset.id}`), short: val(`#d-short-${btn.dataset.id}`) } }), 'Saqlandi'),
+    'ds-save': btn => act(btn, () => {
+      const id = btn.dataset.id;
+      const body = { name: val(`#d-name-${id}`), short: val(`#d-short-${id}`) };
+      if (!$(`#d-user-${id}`).disabled) body.username = val(`#d-user-${id}`) || null;
+      return api(`/api/admin/designers/${id}`, { method: 'PATCH', body });
+    }, 'Saqlandi'),
 
     'season-create': btn => act(btn, () => api('/api/admin/seasons', { method: 'POST', body: {
       label: val('#ns-label'), start: val('#ns-start'), qualify_rounds: val('#ns-rounds'),
