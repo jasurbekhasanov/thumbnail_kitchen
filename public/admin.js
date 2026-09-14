@@ -309,7 +309,7 @@
           ${bar('▶️ YouTuber', count('roles', 'youtuber'))}
           <div style="height:6px"></div>
           ${bar('💬 Dizayn fidbeklari', count('interests', 'feedback'))}
-          ${bar('🖼️ Thumbnail ilhomlari', count('interests', 'inspiration'))}
+          ${bar('🖼️ Muqova ilhomlari', count('interests', 'inspiration'))}
           ${bar('🏆 Haftalik chellenjlar', count('interests', 'challenges'))}
         </div>
         <p class="a-hint">Bir kishi bir nechta variantni tanlashi mumkin, shuning uchun foizlar yig‘indisi 100 dan oshadi.</p>
