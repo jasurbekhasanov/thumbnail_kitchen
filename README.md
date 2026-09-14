@@ -55,9 +55,9 @@ Admin (`ADMIN_IDS`) kerakli topic ichida buyruq yozadi — bot tugmali xabarni o
 
 | Buyruq | Xabar | Tugmalar |
 |---|---|---|
-| `/pin_chellenj` | Haftalik chellenj | G‘oliblar, Liga jadvali |
-| `/pin_sahna` | Sahna orti | Maqolalar, Ariza |
-| `/pin_general` | Xush kelibsiz | Ilova, Chellenj, Liga, Sahna orti, Homiy |
+| `/pin_chellenj` | Chellenjlar | Chellenjlarni ko‘rish |
+| `/pin_sahna` | Sahna orti | Maqolalarni o‘qish |
+| `/pin_general` | Xush kelibsiz, ro‘yxatdan o‘tishga chaqiruv | Ro‘yxatdan o‘tish |
 
 - Buyruq xabari o‘chiriladi. Qayta yozilsa, eski pin o‘chib yangisi qo‘yiladi — matnni o‘zgartirgach shunchaki qayta yuboring.
 - Matnlar `server/pins.js` da.

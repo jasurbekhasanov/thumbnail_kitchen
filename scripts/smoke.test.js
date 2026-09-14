@@ -170,7 +170,8 @@ test('pin xabarlari: tugmalar bo‘limga olib boradi', () => {
   const pins = require('../server/pins');
   process.env.MINIAPP_LINK = 'https://t.me/thumbnailkitchen_bot/app';
   const ch = pins.build('chellenj', { botUsername: 'thumbnailkitchen_bot' });
-  assert.match(ch.text, /Haftalik chellenj/);
+  assert.match(ch.text, /chellenjlari/);
+  for (const k of pins.KINDS) assert.equal(pins.build(k, { botUsername: 'b' }).reply_markup.inline_keyboard.flat().length, 1, `${k}: bitta tugma`);
   assert.equal(ch.reply_markup.inline_keyboard[0][0].url, 'https://t.me/thumbnailkitchen_bot/app?startapp=ch');
   const g = pins.build('general', { botUsername: 'thumbnailkitchen_bot' });
   assert.equal(g.reply_markup.inline_keyboard[0][0].url, 'https://t.me/thumbnailkitchen_bot/app');

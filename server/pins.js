@@ -12,43 +12,35 @@ function appLink(section, botUsername) {
 
 function build(kind, { botUsername }) {
   const app = s => appLink(s, botUsername);
-  const sponsor = process.env.SPONSOR_URL || 'https://t.me/khasanov_jasurbek';
-  const submit = process.env.SAHNA_SUBMIT_URL || sponsor;
 
   const templates = {
     chellenj: {
       text: [
-        '🏆 <b>Haftalik chellenj</b>',
+        '🏆 <b>Thumbnail Kitchen chellenjlari</b>',
         '',
-        'Har dushanba — yangi brif, yakshanba — dedlayn. Eng yaxshi 5 ta ish ochko oladi va Chempionlar Ligasi jadvalida ko‘tariladi.',
+        'Haftalik topshiriqlar asosida mahoratingizni sinang va Chempionlar Ligasi jadvalida ko‘tariling.',
         '',
-        'Ilovada: o‘tgan chellenjlar g‘oliblari, joriy tur dedlayni va liga jadvali.',
+        'G‘oliblar ishlari, liga jadvali va janglar — hammasi ilovada.',
       ],
-      buttons: [[{ text: '🏆 G‘oliblar', url: app('ch') }, { text: '📊 Liga jadvali', url: app('lg') }]],
+      buttons: [[{ text: '🏆 Chellenjlarni ko‘rish', url: app('ch') }]],
     },
     sahna: {
       text: [
         '🎬 <b>Sahna orti</b>',
         '',
         'Dizaynerlar muqova ortidagi jarayonni ko‘rsatadi: brif, ilhom, ish jarayoni va asboblar.',
-        '',
-        'Ishingiz jarayonini hikoya qilib bermoqchimisiz? Ariza qoldiring — maqolani birga tayyorlaymiz.',
       ],
-      buttons: [[{ text: '📖 Maqolalarni o‘qish', url: app('sh') }], [{ text: '✍️ Sahna ortida chiqish', url: submit }]],
+      buttons: [[{ text: '📖 Maqolalarni o‘qish', url: app('sh') }]],
     },
     general: {
       text: [
-        '👋 <b>Thumbnail Kitchen’ga xush kelibsiz</b>',
+        '👋 <b>Thumbnail Kitchen’ga xush kelibsiz!</b>',
         '',
-        'YouTube muqova dizaynerlari uchun jamoa: fidbek, haftalik chellenjlar va Chempionlar Ligasi.',
+        'Guruhdan to‘liq foydalanish uchun ro‘yxatdan o‘ting — atigi ikki savol, bir daqiqa.',
         '',
-        'Birinchi qadam — ilovani ochib, ro‘yxatdan o‘ting. Guruhda rolingiz ko‘rinadi va ligada qatnasha olasiz.',
+        'Ro‘yxatdan o‘tgach, guruhda rolingiz ko‘rinadi, muqova dizaynerlari esa Chempionlar Ligasida qatnasha oladi.',
       ],
-      buttons: [
-        [{ text: '🚀 Ilovani ochish', url: app() }],
-        [{ text: '🏆 Chellenj', url: app('ch') }, { text: '📊 Liga', url: app('lg') }, { text: '🎬 Sahna orti', url: app('sh') }],
-        [{ text: '🤝 Homiy bo‘lish', url: sponsor }],
-      ],
+      buttons: [[{ text: '✍️ Ro‘yxatdan o‘tish', url: app() }]],
     },
   };
   const t = templates[kind];
