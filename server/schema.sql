@@ -42,14 +42,14 @@ CREATE TABLE IF NOT EXISTS challenges (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- place: 1, 2, 3 — bittadan; 4 — "Sheflarga mazasi yoqqan" (soni cheklanmagan, 0,5 ochko)
 CREATE TABLE IF NOT EXISTS results (
   challenge_id INT NOT NULL REFERENCES challenges(id) ON DELETE CASCADE,
-  place        INT NOT NULL CHECK (place BETWEEN 1 AND 5),
+  place        INT NOT NULL CONSTRAINT results_place_check CHECK (place BETWEEN 1 AND 4),
   designer_id  INT NOT NULL REFERENCES designers(id),
   post_url     TEXT,
   image_id     UUID REFERENCES images(id),
-  PRIMARY KEY (challenge_id, place),
-  UNIQUE (challenge_id, designer_id)
+  PRIMARY KEY (challenge_id, designer_id)
 );
 
 -- Liga mavsumlari. Bir vaqtda bitta active mavsum.
@@ -110,3 +110,17 @@ CREATE TABLE IF NOT EXISTS bot_pins (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (chat_id, thread_id, kind)
 );
+
+-- Migratsiya: eski model (1–5-o'rin, PK challenge_id+place) → 1–3 + cheklanmagan sheflar (4)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'results_pkey' AND pg_get_constraintdef(oid) LIKE '%place%') THEN
+    ALTER TABLE results DROP CONSTRAINT results_pkey;
+    ALTER TABLE results DROP CONSTRAINT IF EXISTS results_place_check;
+    UPDATE results SET place = 4 WHERE place = 5;
+    ALTER TABLE results ADD CONSTRAINT results_place_check CHECK (place BETWEEN 1 AND 4);
+    ALTER TABLE results DROP CONSTRAINT IF EXISTS results_challenge_id_designer_id_key;
+    ALTER TABLE results ADD PRIMARY KEY (challenge_id, designer_id);
+  END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS results_top3_uq ON results (challenge_id, place) WHERE place <= 3;

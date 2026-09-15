@@ -10,7 +10,7 @@
     "dev": "node --watch server/index.js",
     "seed:demo": "node scripts/seed.js --demo",
     "seed:sahna": "node scripts/seed.js --sahna",
-    "test": "node --test scripts/smoke.test.js"
+    "test": "node --test scripts/smoke.test.js scripts/migrate.test.js"
   },
   "dependencies": {
     "express": "^5.2.1",

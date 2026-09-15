@@ -55,6 +55,7 @@
 .place-row{background:var(--surface);border-radius:var(--r);padding:10px 12px;display:grid;grid-template-columns:34px 1fr;gap:8px 10px;align-items:start}
 .place-row + .place-row{margin-top:8px}
 .place-row .pl{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#111;background:#fff;margin-top:2px}
+.place-row .pl.chef{background:var(--surface-2);font-size:15px}
 .place-row .pl.p1{background:var(--gold)} .place-row .pl.p2{background:var(--silver)} .place-row .pl.p3{background:var(--bronze)}
 .place-row .cols{display:flex;flex-direction:column;gap:8px;min-width:0}
 .up{display:flex;align-items:center;gap:10px}

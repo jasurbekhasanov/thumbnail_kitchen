@@ -57,6 +57,7 @@
   .thumb .ph{font-family:var(--display);font-weight:800;font-size:22px;color:rgba(255,255,255,.92);text-align:center;padding:0 24px;text-shadow:0 2px 12px rgba(0,0,0,.35);line-height:1.1}
   .place{position:absolute;top:8px;left:8px;min-width:28px;height:28px;padding:0 8px;border-radius:999px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#111;background:#fff}
   .place.p1{background:var(--gold)} .place.p2{background:var(--silver)} .place.p3{background:var(--bronze)}
+  .place.p4{background:rgba(0,0,0,.6);font-size:14px}
   .pts{position:absolute;top:8px;right:8px;font-size:12px;font-weight:600;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:999px}
   .work-meta{display:flex;align-items:center;gap:8px;padding:9px 6px 5px}
   .work-meta .name{font-weight:600}
@@ -329,6 +330,8 @@
   const today = DEMO ? new Date('2026-09-14') : new Date();
   // Mahalliy sana (UTC emas) — Toshkentda yarim tundan keyin kun to'g'ri almashsin
   const localIso = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
+  // 4 = "Sheflarga mazasi yoqqan"
+  const placeLabel = p => (p >= 4 ? '🍗' : p);
   const thumb = (r, ch) => r.thumb
     ? `<img src="${esc(r.thumb)}" alt="" loading="lazy">`
     : `<div class="ph">${esc(ch.title)}</div>`;
@@ -409,7 +412,7 @@
   const workCard = (r, ch) => {
     const d = byId[r.designer];
     return `<button class="work" data-post="${esc(r.post || '')}">
-      <div class="thumb" style="${thumbBg(r, ch)}">${thumb(r, ch)}<div class="place p${r.place}">${r.place}</div></div>
+      <div class="thumb" style="${thumbBg(r, ch)}">${thumb(r, ch)}<div class="place p${r.place}">${placeLabel(r.place)}</div></div>
       <div class="work-meta">${avatar(r.designer)}<span class="name">${esc(d ? d.name : '—')}</span><span class="go">Ishni ko‘rish ›</span></div>
     </button>`;
   };
@@ -520,7 +523,7 @@
       </tbody></table></div>
       <div class="legend"><i></i>${phase !== 'qualifying' ? `Saralash yakunlandi — top ${L.qualify} janglarda` : `Top ${L.qualify} — janglarga yo‘llanma`}</div>
       <div class="card rules"><div class="rules-title">Ochko tizimi</div>
-        <div><b>3</b><span>1-o‘rin</span></div><div><b>2</b><span>2-o‘rin</span></div><div><b>1</b><span>3-o‘rin</span></div><div><b>0,5</b><span>4–5-o‘rin</span></div>
+        <div><b>3</b><span>1-o‘rin</span></div><div><b>2</b><span>2-o‘rin</span></div><div><b>1</b><span>3-o‘rin</span></div><div><b>0,5</b><span>🍗 Sheflar</span></div>
         <div class="rules-foot">Ochko teng bo‘lsa: ko‘proq 1-o‘rin, keyin ko‘proq top-3 olgan yuqorida turadi.</div>
       </div>`;
   };
@@ -568,7 +571,7 @@
       .flatMap(ch => [...ch.results].sort((a, b) => a.place - b.place).map(r => ({ r, ch })));
     return `<div class="card">${items.map(({ r, ch }) => `
       <button class="dz" data-post="${esc(r.post || '')}">
-        <div class="thumb" style="${thumbBg(r, ch)}">${thumb(r, ch)}<div class="place p${r.place}" style="transform:scale(.85);transform-origin:top left">${r.place}</div></div>
+        <div class="thumb" style="${thumbBg(r, ch)}">${thumb(r, ch)}<div class="place p${r.place}" style="transform:scale(.85);transform-origin:top left">${placeLabel(r.place)}</div></div>
         <div class="dz-info"><b>${esc(byId[r.designer].name)}</b><span class="sub">#${ch.no} · ${esc(ch.title)}</span>
           <div class="foot"><span class="p">+${String(D.points[r.place] || 0).replace('.', ',')} ochko</span>· ${fmt(ch.date)}</div></div>
       </button>`).join('')}</div>`;

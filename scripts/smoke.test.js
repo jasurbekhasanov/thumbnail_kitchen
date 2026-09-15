@@ -97,7 +97,7 @@ test('mavsum: 12 tur → 1/8 final avtomatik, g‘olib keyingi bosqichga', async
   for (let t = 0; t < 12; t++) {
     const c = (await post('/api/admin/challenges', { no: t + 1, title: `Tur ${t + 1}`, date: `2026-07-${String(6 + t * 2).padStart(2, '0')}` })).body;
     const group = t % 3; // har turda boshqa 5 kishi ochko oladi
-    const results = [0, 1, 2, 3, 4].map(p => ({ place: p + 1, designer_id: designers[group * 5 + p] }));
+    const results = [0, 1, 2, 3, 4].map(p => ({ place: Math.min(p + 1, 4), designer_id: designers[group * 5 + p] })); // 2 ta shef
     const put = await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results } });
     assert.equal(put.status, 200, JSON.stringify(put.body));
     seed = (await api('PATCH', `/api/admin/challenges/${c.id}`, { user: ADMIN, body: { published: true } })).status;
@@ -203,4 +203,19 @@ test('ro‘yxatdan o‘tgan odamni o‘chirish', async () => {
   assert.equal(after.name, 'Siroj Rustamov');
   const { rows: res } = await db.query(`SELECT 1 FROM results WHERE designer_id = $1`, [d.id]);
   assert.equal(res.length, 1, 'natija saqlandi');
+});
+
+test('sheflar soni cheklanmagan, 1–3-o‘rin takrorlanmaydi', async () => {
+  const ids = [];
+  for (let i = 0; i < 8; i++) ids.push((await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: `Shef ${i}` } })).body.id);
+  const c = (await api('POST', '/api/admin/challenges', { user: ADMIN, body: { no: 77, title: 'Sheflar', date: '2026-07-07' } })).body;
+  const results = [{ place: 1, designer_id: ids[0] }, { place: 2, designer_id: ids[1] }, { place: 3, designer_id: ids[2] },
+    ...ids.slice(3).map(id => ({ place: 4, designer_id: id }))];
+  const ok = await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results } });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  await api('PATCH', `/api/admin/challenges/${c.id}`, { user: ADMIN, body: { published: true } });
+  const st = (await api('GET', '/api/state')).body.challenges.find(x => x.no === 77);
+  assert.equal(st.results.filter(r => r.place === 4).length, 5, '5 ta shef');
+  assert.equal((await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results: [{ place: 2, designer_id: ids[0] }, { place: 2, designer_id: ids[1] }] } })).status, 400);
+  assert.equal((await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results: [{ place: 5, designer_id: ids[0] }] } })).status, 400, '5-o‘rin endi yo‘q');
 });

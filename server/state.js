@@ -10,7 +10,7 @@ async function buildState() {
     q(`SELECT id, name, short FROM designers ORDER BY id`),
     q(`SELECT id, no, title, date FROM challenges WHERE published ORDER BY no DESC`),
     q(`SELECT r.challenge_id, r.place, r.designer_id, r.post_url, r.image_id
-         FROM results r JOIN challenges c ON c.id = r.challenge_id WHERE c.published ORDER BY r.place`),
+         FROM results r JOIN challenges c ON c.id = r.challenge_id WHERE c.published ORDER BY r.place, r.designer_id`),
     q(`SELECT * FROM seasons WHERE active ORDER BY start DESC LIMIT 1`),
     q(`SELECT no, designer, descr, date, read_min, url, cover FROM sahna_posts ORDER BY no DESC`),
   ]);

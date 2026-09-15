@@ -1,7 +1,8 @@
 // Liga qoidalari: ochko, jadval, mavsum taqvimi, setkada keyingi bosqichga o'tish.
 // Frontend (public/index.html) ham xuddi shu qoidalar bo'yicha hisoblaydi — o'zgartirsangiz ikkalasini yangilang.
 
-const POINTS = { 1: 3, 2: 2, 3: 1, 4: 0.5, 5: 0.5 };
+// 4 — "Sheflarga mazasi yoqqan" (bir chellenjda bir nechta bo'lishi mumkin)
+const POINTS = { 1: 3, 2: 2, 3: 1, 4: 0.5 };
 
 const ROUNDS = [
   { key: 'r16', name: '1/8 final', size: 8 },

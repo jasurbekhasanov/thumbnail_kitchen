@@ -240,14 +240,15 @@ admin.delete('/challenges/:id', wrap(async req => {
 admin.put('/challenges/:id/results', wrap(async req => {
   const id = int(req.params.id, 'ID');
   const list = Array.isArray(req.body.results) ? req.body.results : null;
-  if (!list || list.length > 5) throw httpError(400, 'results: 5 tagacha o‘rin');
+  if (!list || list.length > 40) throw httpError(400, 'results: ro‘yxat noto‘g‘ri');
   const rows = list.map((r, i) => ({
-    place: int(r.place, `${i + 1}-qator o‘rni`, { min: 1, max: 5 }),
+    place: int(r.place, `${i + 1}-qator o‘rni`, { min: 1, max: 4 }), // 4 = shef
     designer_id: int(r.designer_id, `${i + 1}-qator dizayneri`, { min: 1 }),
     post_url: url(r.post_url, `${i + 1}-qator havolasi`, { optional: true }),
     image_id: r.image_id ? str(r.image_id, 'Rasm', { max: 36 }) : null,
   }));
-  if (new Set(rows.map(r => r.place)).size !== rows.length) throw httpError(400, 'O‘rinlar takrorlangan');
+  const top = rows.filter(r => r.place <= 3).map(r => r.place);
+  if (new Set(top).size !== top.length) throw httpError(400, 'O‘rinlar takrorlangan');
   if (new Set(rows.map(r => r.designer_id)).size !== rows.length) throw httpError(400, 'Bitta dizayner ikki o‘rinda');
   return db.tx(async t => {
     const { rows: [c] } = await t.query(`SELECT published FROM challenges WHERE id = $1`, [id]);

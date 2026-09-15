@@ -109,23 +109,32 @@
       </div>`;
   }
 
-  function challengeEditor(c) {
-    const byPlace = Object.fromEntries(c.results.map(r => [r.place, r]));
-    const rows = [1, 2, 3, 4, 5].map(p => {
-      const r = byPlace[p] || {};
-      return `<div class="place-row">
-        <div class="pl p${p}">${p}</div>
-        <div class="cols">
-          <label class="fld"><select id="r-d-${p}">${designerOptions(r.designer_id)}</select></label>
-          <input class="a-in" id="r-u-${p}" type="url" inputmode="url" placeholder="Guruhdagi post havolasi (t.me/…)" value="${esc(r.post_url || '')}">
-          <div class="up">
-            <div class="up-prev" id="r-p-${p}" data-img="${r.image_id || ''}" style="${r.image_id ? `background-image:url('/img/${r.image_id}')` : ''}">${r.image_id ? '' : 'Muqova yo‘q'}</div>
-            <label class="btn sm">${r.image_id ? 'Almashtirish' : 'Muqova yuklash'}<input type="file" accept="image/*" data-upload="${p}"></label>
-            ${r.image_id ? `<button class="btn sm danger" data-act="img-clear" data-p="${p}">×</button>` : ''}
-          </div>
+  // G'oliblar qatori. k: '1' | '2' | '3' | 'c<n>' (shef — "Sheflarga mazasi yoqqan", soni cheklanmagan)
+  let chefSeq = 0;
+  function resultRow(k, r = {}) {
+    const chef = k[0] === 'c';
+    return `<div class="place-row" data-k="${k}">
+      <div class="pl ${chef ? 'chef' : `p${k}`}">${chef ? '🍗' : k}</div>
+      <div class="cols">
+        <div class="a-row" style="gap:8px">
+          <label class="fld"><select id="r-d-${k}">${designerOptions(r.designer_id)}</select></label>
+          ${chef ? `<button class="btn sm danger" data-act="row-del" data-k="${k}" aria-label="Olib tashlash">×</button>` : ''}
         </div>
-      </div>`;
-    }).join('');
+        <input class="a-in" id="r-u-${k}" type="url" inputmode="url" placeholder="Guruhdagi post havolasi (t.me/…)" value="${esc(r.post_url || '')}">
+        <div class="up">
+          <div class="up-prev" id="r-p-${k}" data-img="${r.image_id || ''}" style="${r.image_id ? `background-image:url('/img/${r.image_id}')` : ''}">${r.image_id ? '' : 'Muqova yo‘q'}</div>
+          <label class="btn sm"><span>${r.image_id ? 'Almashtirish' : 'Muqova yuklash'}</span><input type="file" accept="image/*" data-upload="${k}"></label>
+          <button class="btn sm danger" data-act="img-clear" data-p="${k}" ${r.image_id ? '' : 'hidden'}>×</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function challengeEditor(c) {
+    const top = [1, 2, 3].map(p => resultRow(String(p), c.results.find(r => r.place === p)));
+    const chefs = c.results.filter(r => r.place >= 4);
+    while (chefs.length < 2) chefs.push({});
+    const rows = top.join('') + chefs.map(r => resultRow(`c${chefSeq++}`, r)).join('');
 
     return `
       <div class="a-sec"><button class="btn sm" data-act="ch-back">‹ Chellenjlar</button></div>
@@ -141,8 +150,9 @@
       </div>
 
       <div class="a-sec"><h3>G‘oliblar</h3>
-        ${rows}
-        <p class="a-hint">Bo‘sh qoldirilgan o‘rinlar saqlanmaydi. Ochko: 3 / 2 / 1 / 0,5 / 0,5.</p>
+        <div id="res-rows">${rows}</div>
+        <div class="btns"><button class="btn" data-act="chef-add">🍗 Shef qo‘shish</button></div>
+        <p class="a-hint">1–3-o‘rin va “Sheflarga mazasi yoqqanlari” (istalgancha). Bo‘sh qatorlar saqlanmaydi. Ochko: 3 / 2 / 1 / sheflar 0,5.</p>
         <div class="btns"><button class="btn pri" data-act="res-save">G‘oliblarni saqlash</button></div>
       </div>
 
@@ -169,24 +179,24 @@
   }
 
   // Qayta chizishda kiritilgan, lekin saqlanmagan qiymatlar yo'qolmasin
+  const readRows = () => [...root.querySelectorAll('#res-rows .place-row')].map(row => {
+    const k = row.dataset.k;
+    return { k, designer_id: val(`#r-d-${k}`), post_url: val(`#r-u-${k}`), image_id: $(`#r-p-${k}`).dataset.img || null };
+  });
   function snapshotResults() {
-    if (!openId || !$('#r-d-1')) return null;
-    return [1, 2, 3, 4, 5].map(p => ({ d: val(`#r-d-${p}`), u: val(`#r-u-${p}`), img: $(`#r-p-${p}`).dataset.img }));
+    return openId && $('#res-rows') ? readRows() : null;
   }
   function restoreResults(snap) {
-    if (!snap || !$('#r-d-1')) return;
-    snap.forEach((s, i) => {
-      const p = i + 1;
-      if (s.d && $(`#r-d-${p} option[value="${s.d}"]`)) $(`#r-d-${p}`).value = s.d;
-      $(`#r-u-${p}`).value = s.u;
-      setPreview(p, s.img);
-    });
+    if (snap && $('#res-rows')) $('#res-rows').innerHTML = snap.map(r => resultRow(r.k, r)).join('');
   }
-  function setPreview(p, id) {
-    const el = $(`#r-p-${p}`);
+  function setPreview(k, id) {
+    const el = $(`#r-p-${k}`);
     el.dataset.img = id || '';
     el.style.backgroundImage = id ? `url('/img/${id}')` : '';
     el.textContent = id ? '' : 'Muqova yo‘q';
+    const row = el.closest('.place-row');
+    row.querySelector('label.btn span').textContent = id ? 'Almashtirish' : 'Muqova yuklash';
+    row.querySelector('[data-act="img-clear"]').hidden = !id;
   }
 
   /* ---------- Liga ---------- */
@@ -367,8 +377,10 @@
     }, 'Chellenj yaratildi — endi g‘oliblarni kiriting'),
     'ch-save': btn => act(btn, () => api(`/api/admin/challenges/${openId}`, { method: 'PATCH', body: { no: val('#ce-no'), title: val('#ce-title'), date: val('#ce-date') } }), 'Saqlandi'),
     'res-save': btn => act(btn, () => {
-      const results = [1, 2, 3, 4, 5].map(p => ({ place: p, designer_id: val(`#r-d-${p}`), post_url: val(`#r-u-${p}`) || null, image_id: $(`#r-p-${p}`).dataset.img || null }))
-        .filter(r => r.designer_id);
+      const results = readRows().filter(r => r.designer_id)
+        .map(r => ({ place: r.k[0] === 'c' ? 4 : Number(r.k), designer_id: r.designer_id, post_url: r.post_url || null, image_id: r.image_id }));
+      const ids = results.map(r => r.designer_id);
+      if (new Set(ids).size !== ids.length) throw new Error('Bitta dizayner ikki marta tanlangan');
       if (!results.length) throw new Error('Kamida bitta g‘olibni tanlang');
       return api(`/api/admin/challenges/${openId}/results`, { method: 'PUT', body: { results } });
     }, out => (out && out.seed && out.seed.seeded ? 'Saqlandi. Saralash tugadi — 1/8 final to‘ldirildi!' : 'G‘oliblar saqlandi')),
@@ -379,6 +391,8 @@
       act(btn, async () => { await api(`/api/admin/challenges/${openId}`, { method: 'DELETE' }); openId = null; }, 'O‘chirildi');
     },
     'img-clear': btn => setPreview(btn.dataset.p, null),
+    'chef-add': () => { $('#res-rows').insertAdjacentHTML('beforeend', resultRow(`c${chefSeq++}`)); },
+    'row-del': btn => { const row = btn.closest('.place-row'); if (row) row.remove(); },
     'ds-create': btn => act(btn, async () => {
       const d = await api('/api/admin/designers', { method: 'POST', body: { name: val('#nd-name'), short: val('#nd-short') || undefined, username: val('#nd-user') || undefined } });
       $('#nd-name').value = ''; $('#nd-short').value = ''; $('#nd-user').value = '';
@@ -446,13 +460,11 @@
   async function onChange(e) {
     const input = e.target.closest('[data-upload]');
     if (!input || !input.files[0]) return;
-    const p = input.dataset.upload;
-    const label = input.parentElement;
-    const text = label.firstChild;
+    const k = input.dataset.upload;
+    const text = input.parentElement.querySelector('span');
     text.textContent = 'Yuklanmoqda…';
     try {
-      setPreview(p, await uploadImage(input.files[0]));
-      text.textContent = 'Almashtirish';
+      setPreview(k, await uploadImage(input.files[0]));
       toast('Muqova yuklandi — “G‘oliblarni saqlash”ni bosing');
     } catch (err) {
       text.textContent = 'Muqova yuklash';
