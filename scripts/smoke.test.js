@@ -244,3 +244,11 @@ test('ro‘yxatdan o‘tgan dizaynerni eski (import) yozuv bilan birlashtirish',
   const other = (await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'Boshqa' } })).body;
   assert.equal((await api('POST', `/api/admin/designers/${other.id}/merge`, { user: ADMIN, body: { target_id: old.id } })).status, 409);
 });
+
+test('natijasiz dizaynerni o‘chirish', async () => {
+  const d = (await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'Sinov yozuvi' } })).body;
+  assert.equal((await api('DELETE', `/api/admin/designers/${d.id}`, { user: USER })).status, 403);
+  assert.equal((await api('DELETE', `/api/admin/designers/${d.id}`, { user: ADMIN })).status, 200);
+  const withResult = (await db.query(`SELECT designer_id FROM results LIMIT 1`)).rows[0].designer_id;
+  assert.equal((await api('DELETE', `/api/admin/designers/${withResult}`, { user: ADMIN })).status, 409);
+});

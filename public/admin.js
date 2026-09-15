@@ -394,7 +394,7 @@
               <label class="fld narrow"><span>Qisqa</span><input id="d-short-${d.id}" value="${esc(d.short)}" maxlength="4"></label>
             </div>
             <div class="a-row"><label class="fld"><span>Telegram username</span><input id="d-user-${d.id}" value="${esc(d.username ? '@' + d.username : '')}" placeholder="@username" ${d.tg_id ? 'disabled' : ''}></label></div>
-            <div class="btns"><button class="btn sm" data-act="ds-save" data-id="${d.id}">Saqlash</button></div>
+            <div class="btns"><button class="btn sm" data-act="ds-save" data-id="${d.id}">Saqlash</button>${resultCount(d.id) ? '' : `<button class="btn sm danger" data-act="ds-del" data-id="${d.id}" data-name="${esc(d.name)}">O‘chirish</button>`}</div>
           </div>`).join('') || '<div class="a-empty">Dizayner yo‘q</div>'}
         <p class="a-hint">“Qisqa” — Liga yo‘li setkasida ko‘rinadigan 3 harf. Qo‘lda qo‘shilgan dizaynerga username yozsangiz, u keyin ro‘yxatdan o‘tganda shu yozuvga bog‘lanadi — ochkolari saqlanadi.</p>
       </div>`;
@@ -454,6 +454,10 @@
       if (!sel.value) return toast('Eski yozuvni tanlang', true);
       if (!(await confirmBox(`Ro‘yxatdan o‘tgan akkaunt “${sel.selectedOptions[0].text}” yozuviga bog‘lanadi. Davom etasizmi?`))) return;
       act(btn, () => api(`/api/admin/designers/${btn.dataset.src}/merge`, { method: 'POST', body: { target_id: Number(sel.value) } }), d => `Birlashtirildi: ${d.name}`);
+    },
+    'ds-del': async btn => {
+      if (!(await confirmBox(`${btn.dataset.name} dizaynerlar ro‘yxatidan o‘chiriladi. Davom etasizmi?`))) return;
+      act(btn, () => api(`/api/admin/designers/${btn.dataset.id}`, { method: 'DELETE' }), 'O‘chirildi');
     },
     'ds-save': btn => act(btn, () => {
       const id = btn.dataset.id;

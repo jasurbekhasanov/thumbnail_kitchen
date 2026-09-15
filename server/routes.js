@@ -195,6 +195,17 @@ admin.delete('/users/:tgId', wrap(async req => {
   return { ...out, tagRemoved };
 }));
 
+// Dizaynerni o'chirish — faqat natijasi va jangi bo'lmasa (liga tarixi buzilmasin)
+admin.delete('/designers/:id', wrap(async req => {
+  const id = int(req.params.id, 'ID', { min: 1 });
+  const { rows: [{ n }] } = await db.query(
+    `SELECT (SELECT count(*) FROM results WHERE designer_id = $1) + (SELECT count(*) FROM matches WHERE $1 IN (a, b, winner)) AS n`, [id]);
+  if (Number(n) > 0) throw httpError(409, 'Dizaynerning natijalari bor — o‘chirib bo‘lmaydi');
+  const { rowCount } = await db.query(`DELETE FROM designers WHERE id = $1`, [id]);
+  if (!rowCount) throw httpError(404, 'Dizayner topilmadi');
+  return { ok: true };
+}));
+
 // Ikki dizayner yozuvini birlashtirish: eski (qo'lda qo'shilgan, import) yozuv ro'yxatdan o'tgan odamga bog'lanadi.
 // Natijalar va janglar eski yozuvda qoladi (target), ro'yxatdan o'tgan yangi yozuv (source) o'chadi.
 admin.post('/designers/:id/merge', wrap(async req => {
