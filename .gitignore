@@ -9,3 +9,6 @@ node_modules/
 # Zaxira nusxalari (shaxsiy ma'lumot) — repoga tushmasin
 backups/
 *.json.gz
+
+# Ichki hujjatlar (zaif joylar ro'yxati) — ochiq repoga tushmasin
+docs/
