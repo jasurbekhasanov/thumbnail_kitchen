@@ -6,6 +6,7 @@ const tg = require('./telegram');
 const { buildState } = require('./state');
 const { fetchTeletype } = require('./teletype');
 const league = require('./league');
+const backup = require('./backup');
 const { httpError } = league;
 
 const adminIds = () => new Set((process.env.ADMIN_IDS || '').split(',').map(s => s.trim()).filter(Boolean));
@@ -233,6 +234,16 @@ admin.post('/designers/:id/merge', wrap(async req => {
     return merged;
   });
 }));
+
+// To'liq zaxira nusxasi (gzip JSON). Tiklash: node scripts/restore.js <fayl>
+admin.get('/backup', wrap(async (_req, res) => {
+  const dump = await backup.exportAll(db.query);
+  const name = `thumbnail-kitchen-${dump.created_at.slice(0, 19).replace(/[:T]/g, '-')}.json.gz`;
+  res.set({ 'content-type': 'application/gzip', 'content-disposition': `attachment; filename="${name}"`, 'cache-control': 'no-store' });
+  res.send(backup.gzipDump(dump));
+}));
+
+admin.get('/backup/summary', wrap(() => backup.summary(db.query)));
 
 // Muqova rasmlari: frontend JPEG'ga siqib yuboradi
 admin.post('/images', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }), wrap(async req => {

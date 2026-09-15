@@ -5,3 +5,7 @@ node_modules/
 !.env.example
 .claude/
 .DS_Store
+
+# Zaxira nusxalari (shaxsiy ma'lumot) — repoga tushmasin
+backups/
+*.json.gz

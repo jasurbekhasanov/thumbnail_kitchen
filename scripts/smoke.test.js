@@ -252,3 +252,25 @@ test('natijasiz dizaynerni o‘chirish', async () => {
   const withResult = (await db.query(`SELECT designer_id FROM results LIMIT 1`)).rows[0].designer_id;
   assert.equal((await api('DELETE', `/api/admin/designers/${withResult}`, { user: ADMIN })).status, 409);
 });
+
+test('zaxira: nusxa olish → bo‘sh bazaga tiklash → hammasi mos', async () => {
+  const backup = require('../server/backup');
+  const res = await fetch(base + '/api/admin/backup', { headers: { 'x-telegram-init-data': initData(ADMIN) } });
+  assert.equal(res.status, 200);
+  assert.equal((await fetch(base + '/api/admin/backup', { headers: { 'x-telegram-init-data': initData(USER) } })).status, 403);
+  const dump = backup.gunzipDump(Buffer.from(await res.arrayBuffer()));
+  const before = await backup.summary(db.query);
+  assert.ok(before.results > 0 && before.images > 0, 'testda ma’lumot bor');
+
+  const { PGlite } = await import('@electric-sql/pglite');
+  const fresh = new PGlite({ parsers: { 1082: v => v, 20: v => Number(v) } });
+  await fresh.exec(require('fs').readFileSync(require('path').join(__dirname, '..', 'server', 'schema.sql'), 'utf8'));
+  await fresh.transaction(t => backup.importAll((a, b) => t.query(a, b), dump));
+  const after = await backup.summary((a, b) => fresh.query(a, b));
+  assert.deepEqual(after, before, 'jadvallar soni va muqovalar hajmi bir xil');
+  // Sanagichlar tiklangan: yangi yozuv id'si to'qnashmaydi
+  const { rows: [d] } = await fresh.query(`INSERT INTO designers (name, short) VALUES ('Yangi', 'YAN') RETURNING id`);
+  assert.ok(d.id > Math.max(...dump.tables.designers.map(x => x.id)));
+  await assert.rejects(backup.importAll((a, b) => fresh.query(a, b), dump), /bo‘sh emas/);
+  await fresh.close();
+});
