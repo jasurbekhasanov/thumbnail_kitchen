@@ -298,6 +298,27 @@
   }
 
   /* ---------- A'zolar ---------- */
+  // Ro'yxatdan o'tgan dizayner va eski (import / qo'lda) yozuvni ism bo'yicha moslash
+  const nameTokens = n => new Set(String(n).toLowerCase().normalize('NFKD').replace(/[‘’'ʻʼ`]/g, '')
+    .replace(/[^\p{L}\s]/gu, ' ').split(/\s+/).filter(w => w.length >= 3)
+    .map(w => w.replace(/(xon|jon)$/, '')));
+  function mergeSuggestions() {
+    // Faqat hali natijasi yo'q (yangi ochilgan) ro'yxatdan o'tgan yozuvlar — birlashtirilganlar qayta chiqmasin
+    const registered = A.designers.filter(d => d.tg_id && !resultCount(d.id));
+    const orphans = A.designers.filter(d => !d.tg_id);
+    const out = [];
+    for (const r of registered) {
+      const user = A.users.find(u => u.tg_id === r.tg_id) || {};
+      const rt = new Set([...nameTokens(r.name), ...nameTokens([user.first_name, user.last_name].filter(Boolean).join(' '))]);
+      for (const o of orphans) {
+        const common = [...nameTokens(o.name)].filter(w => [...rt].some(x => x === w || (w.length >= 4 && x.startsWith(w)) || (x.length >= 4 && w.startsWith(x)))).length;
+        if (common) out.push({ r, o, common, user });
+      }
+    }
+    return out.sort((a, b) => b.common - a.common);
+  }
+  const resultCount = id => A.challenges.reduce((n, c) => n + c.results.filter(r => r.designer_id === id).length, 0);
+
   function viewUsers() {
     const errors = A.users.filter(u => u.tag_error).length;
     const count = (field, key) => A.users.filter(u => u[field].includes(key)).length;
@@ -339,6 +360,32 @@
         }).join('') || '<div class="a-empty">Hozircha hech kim yo‘q</div>'}
         </div>
       </div>
+      ${(() => {
+        const sug = mergeSuggestions();
+        const orphans = A.designers.filter(d => !d.tg_id).sort((a, b) => a.name.localeCompare(b.name));
+        const registered = A.designers.filter(d => d.tg_id && !resultCount(d.id));
+        if (!registered.length || !orphans.length) return '';
+        return `<div class="a-sec"><h3>Eski yozuv bilan birlashtirish</h3>
+          ${sug.map(({ r, o, user }) => `
+            <div class="a-card">
+              <div class="merge">
+                <div><small>Ro‘yxatdan o‘tgan</small><b>${esc(r.name)}</b>${user.username ? `<small>@${esc(user.username)}</small>` : ''}</div>
+                <span>→</span>
+                <div><small>Eski yozuv</small><b>${esc(o.name)}</b><small>${resultCount(o.id)} ta natija</small></div>
+              </div>
+              <div class="btns"><button class="btn sm ok" data-act="ds-merge" data-src="${r.id}" data-dst="${o.id}" data-name="${esc(o.name)}">Birlashtirish</button></div>
+            </div>`).join('')}
+          ${registered.map(r => `
+            <div class="a-card">
+              <div class="a-row">
+                <label class="fld"><span>${esc(r.name)} — boshqa eski yozuv bilan</span>
+                  <select id="mg-${r.id}"><option value="">— tanlang —</option>${orphans.map(o => `<option value="${o.id}">${esc(o.name)} (${resultCount(o.id)})</option>`).join('')}</select></label>
+                <button class="btn sm" data-act="ds-merge-sel" data-src="${r.id}" style="align-self:flex-end">Birlashtirish</button>
+              </div>
+            </div>`).join('')}
+          <p class="a-hint">Import qilingan dizayner ro‘yxatdan o‘tsa, ilova unga yangi yozuv ochadi. Birlashtirsangiz, eski ismi va ochkolari saqlanib, Telegram akkauntiga bog‘lanadi.</p>
+        </div>`;
+      })()}
       <div class="a-sec"><h3>Dizaynerlar</h3>
         ${A.designers.map(d => `
           <div class="a-card">
@@ -398,6 +445,16 @@
       $('#nd-name').value = ''; $('#nd-short').value = ''; $('#nd-user').value = '';
       return d;
     }, d => `${d.name} qo‘shildi — ro‘yxatdan tanlashingiz mumkin`),
+    'ds-merge': async btn => {
+      if (!(await confirmBox(`Ro‘yxatdan o‘tgan akkaunt “${btn.dataset.name}” yozuviga bog‘lanadi. Natijalar saqlanadi. Davom etasizmi?`))) return;
+      act(btn, () => api(`/api/admin/designers/${btn.dataset.src}/merge`, { method: 'POST', body: { target_id: Number(btn.dataset.dst) } }), d => `Birlashtirildi: ${d.name}`);
+    },
+    'ds-merge-sel': async btn => {
+      const sel = $(`#mg-${btn.dataset.src}`);
+      if (!sel.value) return toast('Eski yozuvni tanlang', true);
+      if (!(await confirmBox(`Ro‘yxatdan o‘tgan akkaunt “${sel.selectedOptions[0].text}” yozuviga bog‘lanadi. Davom etasizmi?`))) return;
+      act(btn, () => api(`/api/admin/designers/${btn.dataset.src}/merge`, { method: 'POST', body: { target_id: Number(sel.value) } }), d => `Birlashtirildi: ${d.name}`);
+    },
     'ds-save': btn => act(btn, () => {
       const id = btn.dataset.id;
       const body = { name: val(`#d-name-${id}`), short: val(`#d-short-${id}`) };

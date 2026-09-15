@@ -88,3 +88,7 @@ details.a-more summary::-webkit-details-marker{display:none}
 .i-bar .track{height:6px;border-radius:6px;background:var(--surface-2);overflow:hidden}
 .i-bar .fill{height:100%;background:var(--accent);border-radius:6px}
 .u-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.merge{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}
+.merge > span{color:var(--dim)}
+.merge small{display:block;font-size:11px;color:var(--muted)}
+.merge b{display:block;font-size:14px;font-weight:600}

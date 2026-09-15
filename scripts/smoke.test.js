@@ -219,3 +219,28 @@ test('sheflar soni cheklanmagan, 1–3-o‘rin takrorlanmaydi', async () => {
   assert.equal((await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results: [{ place: 2, designer_id: ids[0] }, { place: 2, designer_id: ids[1] }] } })).status, 400);
   assert.equal((await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results: [{ place: 5, designer_id: ids[0] }] } })).status, 400, '5-o‘rin endi yo‘q');
 });
+
+test('ro‘yxatdan o‘tgan dizaynerni eski (import) yozuv bilan birlashtirish', async () => {
+  const old = (await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'Davron Akbarov' } })).body;
+  const c = (await api('POST', '/api/admin/challenges', { user: ADMIN, body: { no: 55, title: 'Import', date: '2026-04-15' } })).body;
+  await api('PUT', `/api/admin/challenges/${c.id}/results`, { user: ADMIN, body: { results: [{ place: 1, designer_id: old.id, post_url: 'https://t.me/x/1' }] } });
+
+  const DAVRON = { id: 5000, first_name: 'Davron', username: 'davron_new' };
+  await api('POST', '/api/register', { user: DAVRON, body: { roles: ['designer'], interests: ['challenges'] } });
+  const { rows: [fresh] } = await db.query(`SELECT id FROM designers WHERE tg_id = $1`, [DAVRON.id]);
+  assert.ok(fresh && fresh.id !== old.id, 'ro‘yxatdan o‘tganda yangi yozuv paydo bo‘ladi');
+
+  assert.equal((await api('POST', `/api/admin/designers/${fresh.id}/merge`, { user: USER, body: { target_id: old.id } })).status, 403);
+  const m = await api('POST', `/api/admin/designers/${fresh.id}/merge`, { user: ADMIN, body: { target_id: old.id } });
+  assert.equal(m.status, 200, JSON.stringify(m.body));
+  assert.equal(m.body.id, old.id);
+  assert.equal(m.body.tg_id, DAVRON.id);
+  assert.equal(m.body.name, 'Davron Akbarov', 'import ismi qoladi');
+  const { rows } = await db.query(`SELECT count(*)::int AS n FROM designers WHERE tg_id = $1`, [DAVRON.id]);
+  assert.equal(rows[0].n, 1, 'dublikat yo‘q');
+  const { rows: [r] } = await db.query(`SELECT designer_id FROM results WHERE challenge_id = $1`, [c.id]);
+  assert.equal(r.designer_id, old.id, 'natija saqlandi');
+  // Allaqachon bog'langan yozuvga qayta birlashtirib bo'lmaydi
+  const other = (await api('POST', '/api/admin/designers', { user: ADMIN, body: { name: 'Boshqa' } })).body;
+  assert.equal((await api('POST', `/api/admin/designers/${other.id}/merge`, { user: ADMIN, body: { target_id: old.id } })).status, 409);
+});

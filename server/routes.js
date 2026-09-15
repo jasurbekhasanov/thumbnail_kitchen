@@ -195,6 +195,34 @@ admin.delete('/users/:tgId', wrap(async req => {
   return { ...out, tagRemoved };
 }));
 
+// Ikki dizayner yozuvini birlashtirish: eski (qo'lda qo'shilgan, import) yozuv ro'yxatdan o'tgan odamga bog'lanadi.
+// Natijalar va janglar eski yozuvda qoladi (target), ro'yxatdan o'tgan yangi yozuv (source) o'chadi.
+admin.post('/designers/:id/merge', wrap(async req => {
+  const sourceId = int(req.params.id, 'ID', { min: 1 });          // ro'yxatdan o'tgan (tg_id bor)
+  const targetId = int(req.body.target_id, 'Eski yozuv', { min: 1 }); // qo'lda qo'shilgan (tg_id yo'q)
+  if (sourceId === targetId) throw httpError(400, 'Bir xil yozuv');
+  return db.tx(async t => {
+    const { rows } = await t.query(`SELECT * FROM designers WHERE id = ANY($1::int[])`, [[sourceId, targetId]]);
+    const source = rows.find(d => d.id === sourceId), target = rows.find(d => d.id === targetId);
+    if (!source || !target) throw httpError(404, 'Dizayner topilmadi');
+    if (target.tg_id) throw httpError(409, `${target.name} allaqachon Telegram akkauntga bog‘langan`);
+    // Ikkalasi bitta chellenjda qatnashgan bo'lsa — yuqoriroq o'rin qoladi
+    const { rows: both } = await t.query(
+      `SELECT s.challenge_id, s.place AS sp, tr.place AS tp FROM results s JOIN results tr ON tr.challenge_id = s.challenge_id AND tr.designer_id = $2
+       WHERE s.designer_id = $1`, [sourceId, targetId]);
+    for (const c of both) {
+      if (c.sp < c.tp) await t.query(`DELETE FROM results WHERE challenge_id = $1 AND designer_id = $2`, [c.challenge_id, targetId]);
+      else await t.query(`DELETE FROM results WHERE challenge_id = $1 AND designer_id = $2`, [c.challenge_id, sourceId]);
+    }
+    await t.query(`UPDATE results SET designer_id = $2 WHERE designer_id = $1`, [sourceId, targetId]);
+    for (const col of ['a', 'b', 'winner']) await t.query(`UPDATE matches SET ${col} = $2 WHERE ${col} = $1`, [sourceId, targetId]);
+    await t.query(`DELETE FROM designers WHERE id = $1`, [sourceId]);
+    const { rows: [merged] } = await t.query(
+      `UPDATE designers SET tg_id = $1, username = COALESCE(username, $2) WHERE id = $3 RETURNING *`, [source.tg_id, source.username, targetId]);
+    return merged;
+  });
+}));
+
 // Muqova rasmlari: frontend JPEG'ga siqib yuboradi
 admin.post('/images', express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '3mb' }), wrap(async req => {
   if (!Buffer.isBuffer(req.body) || !req.body.length) throw httpError(400, 'Rasm yuborilmadi (image/jpeg, png yoki webp)');
